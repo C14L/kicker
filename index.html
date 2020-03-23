@@ -204,16 +204,51 @@ body {
     </div>
 <script>
 
-const table = document.querySelector("#table");
-const ball = document.querySelector("#table > .ball");
+const elTable = document.querySelector("#table");
+const elBall = document.querySelector("#table > .ball");
+const elsBar = document.querySelectorAll("#table > .bar");
+const elsPlayer = document.querySelectorAll("#table > .bar > .player");
 
-let table_tl_x = table.offsetTop;
-let table_tl_y = table.offsetLeft;
-let table_br_x = table.offsetWidth + table_tl_x;
-let table_br_y = table.offsetHeight + table_tl_y;
+let table_tl_x = elTable.offsetTop;
+let table_tl_y = elTable.offsetLeft;
+let table_br_x = elTable.offsetWidth + table_tl_x;
+let table_br_y = elTable.offsetHeight + table_tl_y;
 
-ball.style.left = table_tl_x + "px";
-ball.style.top = table_tl_y + "px";
+let ownBar_1_offset = document.querySelector("#table > .bar")
+let ownBar_2_offset = 0
+
+class Ball {
+    constructor() {
+        this.x = table_tl_x;
+        this.y = table_tl_y;
+        this.d = 0;
+        this.v = 0;
+    }
+    set velocity(v) {
+        this.v = v;
+    }
+    set direction(d) {
+        this.d = d;
+    }
+    move() {
+        this.x += this.v;
+        this.y += 0;
+    }
+    draw() {
+        elBall.style.left = this.x + "px";
+        elBall.style.top = this.y + "px";
+    }
+}
+
+const ball = new Ball();
+ball.direction = 115;
+ball.velocity = 5;
+ball.draw();
+
+let ballInterval = setInterval(()=>{
+    ball.move();
+    ball.draw();
+}, 500);
 
 console.log(ball.style);
 
