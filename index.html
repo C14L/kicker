@@ -18,6 +18,19 @@ body {
     padding: 0;
 }
 
+#numbers {
+    position: fixed;
+    color: white;
+    top: calc(var(--field-margin) + 20px);
+    left: calc(var(--field-margin) + 20px);
+}
+#numbers > ul {
+    list-style-type: circle;
+}
+#numbers > ul > li {
+    display: list-item;
+}
+
 #table {
     background-color: green;
     outline: 10px solid black;
@@ -163,76 +176,170 @@ body {
         <div class="ball"></div>
         <div class="goal left"></div>
         <div class="goal right"></div>
-        <div class="bar keeper black">
+        <div class="bar bar-0 keeper black">
             <div class="player p1"></div>
         </div>
-        <div class="bar keeper white">
-            <div class="player p1"></div>
-        </div>
-        <div class="bar defense black">
+        <div class="bar bar-1 defense black">
             <div class="player p1"></div>
             <div class="player p2"></div>
         </div>
-        <div class="bar defense white">
+        <div class="bar bar-2 attack white">
             <div class="player p1"></div>
             <div class="player p2"></div>
+            <div class="player p3"></div>
         </div>
-        <div class="bar center black">
+        <div class="bar bar-3 center black">
             <div class="player p1"></div>
             <div class="player p2"></div>
             <div class="player p3"></div>
             <div class="player p4"></div>
             <div class="player p5"></div>
         </div>
-        <div class="bar center white">
+        <div class="bar bar-4 center white">
             <div class="player p1"></div>
             <div class="player p2"></div>
             <div class="player p3"></div>
             <div class="player p4"></div>
             <div class="player p5"></div>
         </div>
-        <div class="bar attack black">
+        <div class="bar bar-5 attack black">
             <div class="player p1"></div>
             <div class="player p2"></div>
             <div class="player p3"></div>
         </div>
-        <div class="bar attack white">
+        <div class="bar bar-6 defense white">
             <div class="player p1"></div>
             <div class="player p2"></div>
-            <div class="player p3"></div>
         </div>
+        <div class="bar bar-7 keeper white">
+            <div class="player p1"></div>
+        </div>
+    </div>
+    <div id="numbers">
+        <ul class="velocity">
+            <li class="t"></li>
+            <li class="x"></li>
+            <li class="y"></li>
+        </ul>
     </div>
 <script>
 
 const elTable = document.querySelector("#table");
 const elBall = document.querySelector("#table > .ball");
+const elsGoal = document.querySelectorAll("#table > .goal");
 const elsBar = document.querySelectorAll("#table > .bar");
 const elsPlayer = document.querySelectorAll("#table > .bar > .player");
+const elNumbersVelocity = document.querySelector("#numbers > .velocity");
+const elNumbersVelocity_t = elNumbersVelocity.querySelector(".t");
+const elNumbersVelocity_x = elNumbersVelocity.querySelector(".x");
+const elNumbersVelocity_y = elNumbersVelocity.querySelector(".y");
 
 let table_tl_x = elTable.offsetTop;
 let table_tl_y = elTable.offsetLeft;
 let table_br_x = elTable.offsetWidth + table_tl_x;
 let table_br_y = elTable.offsetHeight + table_tl_y;
 
-let ownBar_1_offset = document.querySelector("#table > .bar")
-let ownBar_2_offset = 0
+let goal_top = elsGoal[0].offsetTop;
+let goal_bottom = elsGoal[0].offsetHeight + goal_top;
+
+let ball_radius = elBall.offsetWidth / 2;
+
+let bars_y = [
+    document.querySelector("#table > .bar-0").offsetTop,
+    document.querySelector("#table > .bar-1").offsetTop,
+    document.querySelector("#table > .bar-2").offsetTop,
+    document.querySelector("#table > .bar-3").offsetTop,
+    document.querySelector("#table > .bar-4").offsetTop,
+    document.querySelector("#table > .bar-5").offsetTop,
+    document.querySelector("#table > .bar-6").offsetTop,
+    document.querySelector("#table > .bar-7").offsetTop];
+
+window.addEventListener("keydown", ev => {
+    if (ev.key == "w") {
+        console.log("left move down");
+        bars_y[0] -= 5;
+        console.log("bars_y[0] == " + bars_y[0]);
+        elsBar[0].style.top = bars_y[0] + "px";
+    }
+    if (ev.key == "s") {
+        console.log("left kick");
+    }
+    if (ev.key == "x") {
+        console.log("left move down");
+        bars_y[0] += 5;
+        console.log("bars_y[0] == " + bars_y[0]);
+        elsBar[0].style.top = bars_y[0] + "px";
+    }
+    if (ev.key == "o") {
+        console.log("right move up");
+        bars_y[1] -= 5;
+        console.log("bars_y[1] == " + bars_y[1]);
+        elsBar[1].style.top = bars_y[1] + "px";
+    }
+    if (ev.key == "k") {
+        console.log("right kick");
+    }
+    if (ev.key == "m") {
+        console.log("right move down");
+        bars_y[1] += 5;
+        console.log("bars_y[1] == " + bars_y[1]);
+        elsBar[1].style.top = bars_y[1] + "px";
+    }
+});
 
 class Ball {
     constructor() {
+        this.reset();
+    }
+    reset() {
+        this.goalHit = false;
         this.x = table_tl_x;
         this.y = table_tl_y;
-        this.d = 0;
-        this.v = 0;
+        this.xMin = table_tl_x;
+        this.yMin = table_tl_y;
+        this.xMax = table_br_x - (2 * ball_radius);
+        this.yMax = table_br_y - (2 * ball_radius);
+        this.v = [0, 0];
+        this.a = 0.9991;  // 1=constant velocity
+        this.d = 0; // drag from surface friction
     }
-    set velocity(v) {
-        this.v = v;
+    start(team) {
+        if (arguments.team == "black") {
+            // black gets the inital ball
+        } else if (arguments.team == "white") {
+            // white gets the inital ball
+        } else {
+            // randomly throw the ball onto the field
+            this.xVelocity = 80;
+            this.yVelocity = 60;
+            this.acceleration = 0.99;
+        }
     }
-    set direction(d) {
+    set acceleration(a) {
+        this.a = a;
+    }
+    set xVelocity(v) {
+        this.v[0] = v;
+    }
+    set yVelocity(v) {
+        this.v[1] = v;
+    }
+    set drag(d) {
         this.d = d;
     }
+    get vt() {
+        let vt = Math.sqrt(this.v[0]**2 + this.v[1]**2);
+        return vt
+    }
     move() {
-        this.x += this.v;
-        this.y += 0;
+        if (this.goalHit) return;
+
+        if (this.vt < 0.15) this.a = 0;
+        this.v[0] *= this.a;
+        this.v[1] *= this.a;
+
+        this.x += this.v[0];
+        this.y += this.v[1];
     }
     draw() {
         elBall.style.left = this.x + "px";
@@ -240,17 +347,58 @@ class Ball {
     }
 }
 
-const ball = new Ball();
-ball.direction = 115;
-ball.velocity = 5;
-ball.draw();
+function play() {
+    return new Promise((resolve, reject) => {
+        let ball = new Ball();
+        let ballInterval = null;
+        let collission = null;
+        ball.start();
+        ballInterval = setInterval(() => {
+            requestAnimationFrame(() => {
+                elNumbersVelocity_t.innerHTML = Math.round(ball.vt * 10000) / 10000;
+                elNumbersVelocity_x.innerHTML = Math.round(ball.x * 10000) / 10000;
+                elNumbersVelocity_y.innerHTML = Math.round(ball.y * 10000) / 10000;
+                ball.move();
+                ball.draw();
+                collission = getGoalCollission(ball);
+                if (collission) {
+                    ball.goalHit = true;
+                    clearInterval(ballInterval);
+                    console.log("Goal hit, interval canceled.");
+                    resolve(collission);
+                };
+                isPlayerCollission(ball);
+                isWallCollission(ball);
+            });
+        }, 50);
+    });
+}
 
-let ballInterval = setInterval(()=>{
-    ball.move();
-    ball.draw();
-}, 500);
+function getGoalCollission(ball) {
+    if (ball.y > goal_top && ball.y < goal_bottom) {
+        if (ball.x >= ball.xMax) {
+            console.log("Hit right goal");
+            return "right";
+        }
+        if (ball.x <= ball.xMin) {
+            console.log("Hit left goal");
+            return "left";
+        }
+    }
+    return null;
+}
 
-console.log(ball.style);
+function isPlayerCollission(ball) {
+}
+
+function isWallCollission(ball) {
+    if (ball.x > ball.xMax && ball.v[0] > 0) ball.v[0] *= -1;
+    if (ball.x < ball.xMin && ball.v[0] < 0) ball.v[0] *= -1;
+    if (ball.y > ball.yMax && ball.v[1] > 0) ball.v[1] *= -1;
+    if (ball.y < ball.yMin && ball.v[1] < 0) ball.v[1] *= -1;
+}
+
+play().then(result => { alert("Goal for " + result) });
 
 </script>
 </body>
