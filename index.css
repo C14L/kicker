@@ -42,6 +42,9 @@ body {
     border-radius: var(--ball-radius);
     background-color: white;
     border: 1px solid black;
+    color: white;
+    text-align: center;
+    text-shadow: 0 0 2px black;
 }
 
 #table > .goal {
@@ -66,6 +69,9 @@ body {
     height: 100vh;
     width: var(--bar-size);
     background-color: lightgray;
+}
+#table > .bar.impact {
+    background-color: red;
 }
 
 #table > .bar.keeper.black {
@@ -107,9 +113,12 @@ body {
     position: absolute;
     left: calc(var(--player-size) * (-0.5) + var(--bar-size) * 0.5);
     color: white;
+    text-align: center;
+    text-shadow: 0 0 2px black;
 }
+
 #table > .bar > .player.impact {
-    outline: red solid 10px;
+    background-color: red !important;
 }
 
 #table > .bar.black > .player {
