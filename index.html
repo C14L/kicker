@@ -114,6 +114,10 @@ body {
     border-radius: 50%;
     position: absolute;
     left: calc(var(--player-size) * (-0.5) + var(--bar-size) * 0.5);
+    color: white;
+}
+#table > .bar > .player.impact {
+    outline: red solid 10px;
 }
 
 #table > .bar.black > .player {
@@ -224,6 +228,7 @@ body {
     </div>
 <script>
 
+// DOM elements
 const elTable = document.querySelector("#table");
 const elBall = document.querySelector("#table > .ball");
 const elsGoal = document.querySelectorAll("#table > .goal");
@@ -234,16 +239,17 @@ const elNumbersVelocity_t = elNumbersVelocity.querySelector(".t");
 const elNumbersVelocity_x = elNumbersVelocity.querySelector(".x");
 const elNumbersVelocity_y = elNumbersVelocity.querySelector(".y");
 
-let table_tl_x = elTable.offsetTop;
-let table_tl_y = elTable.offsetLeft;
-let table_br_x = elTable.offsetWidth + table_tl_x;
-let table_br_y = elTable.offsetHeight + table_tl_y;
+// Fixed objects
+const table_tl_x = elTable.offsetTop;
+const table_tl_y = elTable.offsetLeft;
+const table_br_x = elTable.offsetWidth + table_tl_x;
+const table_br_y = elTable.offsetHeight + table_tl_y;
+const goal_top = elsGoal[0].offsetTop;
+const goal_bottom = elsGoal[0].offsetHeight + goal_top;
+const player_radius = elsPlayer[0].offsetWidth / 2;
+const ball_radius = elBall.offsetWidth / 2;
 
-let goal_top = elsGoal[0].offsetTop;
-let goal_bottom = elsGoal[0].offsetHeight + goal_top;
-
-let ball_radius = elBall.offsetWidth / 2;
-
+// TODO: Bar should not move, just their players!
 let bars_y = [
     document.querySelector("#table > .bar-0").offsetTop,
     document.querySelector("#table > .bar-1").offsetTop,
@@ -254,36 +260,64 @@ let bars_y = [
     document.querySelector("#table > .bar-6").offsetTop,
     document.querySelector("#table > .bar-7").offsetTop];
 
+let players = [];
+
+function updatePlayers() {
+    players = [];
+    elsPlayer.forEach(o => {
+        let r = o.getBoundingClientRect();
+        players.push({"x": r.left + (r.width/2), "y": r.top + (r.height/2)});
+    });
+}
+updatePlayers();
+
+let leftMoveUpInterval = false;
+let leftMoveDownInterval = false;
+let rightMoveUpInterval = false;
+let rightMoveDownInterval = false;
+
+window.addEventListener("keyup", ev => {
+    if (ev.key == "w") { clearInterval(leftMoveUpInterval); leftMoveUpInterval = false; }
+    if (ev.key == "x") { clearInterval(leftMoveDownInterval); leftMoveDownInterval = false; }
+    if (ev.key == "o") { clearInterval(rightMoveUpInterval); rightMoveUpInterval = false; }
+    if (ev.key == "m") { clearInterval(rightMoveDownInterval); rightMoveDownInterval = false; }
+});
+
+function barMove(barIndex, dir) {
+    requestAnimationFrame(() => {
+        if ( dir == "up" ) {
+            bars_y[barIndex] -= 1;
+        }
+        if ( dir == "down" ) {
+            bars_y[barIndex] += 1;
+        }
+        elsBar[barIndex].style.top = bars_y[barIndex] + "px";
+        updatePlayers();
+    });
+}
+
 window.addEventListener("keydown", ev => {
-    if (ev.key == "w") {
-        console.log("left move down");
-        bars_y[0] -= 5;
-        console.log("bars_y[0] == " + bars_y[0]);
-        elsBar[0].style.top = bars_y[0] + "px";
+    if (ev.key == "w" && !leftMoveUpInterval) {
+        console.log("left move down started");
+        leftMoveUpInterval = setInterval(() => requestAnimationFrame(() => { bars_y[0] -= 1; elsBar[0].style.top = bars_y[0] + "px"; }));
     }
     if (ev.key == "s") {
         console.log("left kick");
     }
-    if (ev.key == "x") {
+    if (ev.key == "x" && !leftMoveDownInterval) {
         console.log("left move down");
-        bars_y[0] += 5;
-        console.log("bars_y[0] == " + bars_y[0]);
-        elsBar[0].style.top = bars_y[0] + "px";
+        leftMoveDownInterval = setInterval(() => requestAnimationFrame(() => { bars_y[0] += 1; elsBar[0].style.top = bars_y[0] + "px"; }));
     }
-    if (ev.key == "o") {
+    if (ev.key == "o" && !rightMoveUpInterval) {
         console.log("right move up");
-        bars_y[1] -= 5;
-        console.log("bars_y[1] == " + bars_y[1]);
-        elsBar[1].style.top = bars_y[1] + "px";
+        rightMoveUpInterval = setInterval(() => requestAnimationFrame(() => { bars_y[1] -= 1; elsBar[1].style.top = bars_y[1] + "px"; }));
     }
     if (ev.key == "k") {
         console.log("right kick");
     }
-    if (ev.key == "m") {
+    if (ev.key == "m" && !rightMoveDownInterval) {
         console.log("right move down");
-        bars_y[1] += 5;
-        console.log("bars_y[1] == " + bars_y[1]);
-        elsBar[1].style.top = bars_y[1] + "px";
+        rightMoveDownInterval = setInterval(() => requestAnimationFrame(() => { bars_y[1] += 1; elsBar[1].style.top = bars_y[1] + "px"; }));
     }
 });
 
@@ -293,12 +327,13 @@ class Ball {
     }
     reset() {
         this.goalHit = false;
-        this.x = table_tl_x;
-        this.y = table_tl_y;
-        this.xMin = table_tl_x;
-        this.yMin = table_tl_y;
-        this.xMax = table_br_x - (2 * ball_radius);
-        this.yMax = table_br_y - (2 * ball_radius);
+        this.stop = false;
+        this.x = table_tl_x + ball_radius;
+        this.y = table_tl_y + ball_radius;
+        this.xMin = table_tl_x + ball_radius;
+        this.yMin = table_tl_y + ball_radius;
+        this.xMax = table_br_x - ball_radius;
+        this.yMax = table_br_y - ball_radius;
         this.v = [0, 0];
         this.a = 0.9991;  // 1=constant velocity
         this.d = 0; // drag from surface friction
@@ -310,8 +345,8 @@ class Ball {
             // white gets the inital ball
         } else {
             // randomly throw the ball onto the field
-            this.xVelocity = 80;
-            this.yVelocity = 60;
+            this.xVelocity = 10;
+            this.yVelocity = 7;
             this.acceleration = 0.99;
         }
     }
@@ -342,60 +377,90 @@ class Ball {
         this.y += this.v[1];
     }
     draw() {
-        elBall.style.left = this.x + "px";
-        elBall.style.top = this.y + "px";
+        elBall.style.left = this.x - ball_radius + "px";
+        elBall.style.top = this.y - ball_radius + "px";
+        elBall.innerHTML = elBall.getBoundingClientRect().left + ", " + elBall.getBoundingClientRect().top;
     }
+}
+
+function getCenterXY(el) {
+    const b = el.getBoundingClientRect()
+    return [b.left + (b.width / 2), b.top + (b.height / 2)];
 }
 
 function play() {
     return new Promise((resolve, reject) => {
         let ball = new Ball();
-        let ballInterval = null;
+        let animationInterval = null;
         let collission = null;
         ball.start();
-        ballInterval = setInterval(() => {
+        animationInterval = setInterval(() => {
+            if ( ball.stop ) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
             requestAnimationFrame(() => {
                 elNumbersVelocity_t.innerHTML = Math.round(ball.vt * 10000) / 10000;
                 elNumbersVelocity_x.innerHTML = Math.round(ball.x * 10000) / 10000;
                 elNumbersVelocity_y.innerHTML = Math.round(ball.y * 10000) / 10000;
+
+                elsPlayer.forEach(p => p.innerHTML = p.getBoundingClientRect().left + ", " + p.getBoundingClientRect().top);
+
                 ball.move();
                 ball.draw();
                 collission = getGoalCollission(ball);
-                if (collission) {
+                if (!ball.stop && collission) {
                     ball.goalHit = true;
-                    clearInterval(ballInterval);
+                    ball.stop = true;
                     console.log("Goal hit, interval canceled.");
                     resolve(collission);
-                };
-                isPlayerCollission(ball);
-                isWallCollission(ball);
+                }
+                if ( !ball.stop && isPlayerCollission(ball) ) {
+                    // ball.stop = true;
+                    console.log("Player hit, interval canceled.");
+                    resolve(collission);
+                }
+                if ( !ball.stop ) {
+                    isWallCollission(ball);
+                }
             });
-        }, 50);
+        }, 10);
     });
 }
 
 function getGoalCollission(ball) {
     if (ball.y > goal_top && ball.y < goal_bottom) {
-        if (ball.x >= ball.xMax) {
-            console.log("Hit right goal");
-            return "right";
-        }
-        if (ball.x <= ball.xMin) {
-            console.log("Hit left goal");
-            return "left";
-        }
+        if (ball.x >= ball.xMax) return "right";
+        if (ball.x <= ball.xMin) return "left";
     }
     return null;
 }
 
 function isPlayerCollission(ball) {
+    players.forEach((p, i) => {
+        let pTop = p.y - player_radius;
+        let pBotton = p.y + player_radius;
+        let pLeft = p.x - player_radius;
+        let pRight = p.x + player_radius;
+
+        if ( ball.x > pLeft && ball.x < pRight ) {
+            if ( ball.y > pTop && ball.y < pBotton ) {
+                console.log(i, "ball is in player range", ball, p);
+                elsPlayer[i].classList.add("impact");
+                setTimeout(()=>{elsPlayer[i].classList.remove("impact")}, 100);
+                ball.v[0] *= -1;
+                ball.v[1] *= -1;
+            }
+        }
+    });
+    // return false;
 }
 
 function isWallCollission(ball) {
-    if (ball.x > ball.xMax && ball.v[0] > 0) ball.v[0] *= -1;
-    if (ball.x < ball.xMin && ball.v[0] < 0) ball.v[0] *= -1;
-    if (ball.y > ball.yMax && ball.v[1] > 0) ball.v[1] *= -1;
-    if (ball.y < ball.yMin && ball.v[1] < 0) ball.v[1] *= -1;
+    if (ball.x > ball.xMax && ball.v[0] > 0) { ball.v[0] *= -1; console.log("ball wall collission", ball); }
+    if (ball.x < ball.xMin && ball.v[0] < 0) { ball.v[0] *= -1; console.log("ball wall collission", ball); }
+    if (ball.y > ball.yMax && ball.v[1] > 0) { ball.v[1] *= -1; console.log("ball wall collission", ball); }
+    if (ball.y < ball.yMin && ball.v[1] < 0) { ball.v[1] *= -1; console.log("ball wall collission", ball); }
 }
 
 play().then(result => { alert("Goal for " + result) });
