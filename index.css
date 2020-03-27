@@ -1,0 +1,165 @@
+body {
+    --field-width: 95vw;
+    --field-height: 90vh;
+    --field-margin: calc((100vh - var(--field-height)) / 2);
+    --goal-height: 25vh;
+    --ball-radius: 2.5vh;
+    --bar-size: 0.5vw;
+    --player-size: 3vw;
+    margin: 0;
+    padding: 0;
+}
+
+#numbers {
+    position: fixed;
+    color: white;
+    top: calc(var(--field-margin) + 20px);
+    left: calc(var(--field-margin) + 20px);
+}
+#numbers > ul {
+    list-style-type: circle;
+}
+#numbers > ul > li {
+    display: list-item;
+}
+
+#table {
+    background-color: green;
+    outline: 10px solid black;
+    position: fixed;
+    top: var(--field-margin);
+    right: var(--field-margin);
+    bottom: var(--field-margin);
+    left: var(--field-margin);
+}
+
+#table > .ball {
+    position: fixed;
+    top: calc(50vh - var(--ball-radius));
+    left: calc(50vw - var(--ball-radius));
+    height: calc(2 * var(--ball-radius));
+    width: calc(2 * var(--ball-radius));
+    border-radius: var(--ball-radius);
+    background-color: white;
+    border: 1px solid black;
+}
+
+#table > .goal {
+    position: fixed;
+    top: calc(50vh - (var(--goal-height) / 2));
+    height: var(--goal-height);
+    width: 20px;
+    background-color: gray;
+}
+
+#table > .goal.left {
+    left: calc(var(--field-margin) - 20px);
+}
+
+#table > .goal.right {
+    right: calc(var(--field-margin) - 20px);
+}
+
+#table > .bar {
+    position: fixed;
+    top: 0;
+    height: 100vh;
+    width: var(--bar-size);
+    background-color: lightgray;
+}
+
+#table > .bar.keeper.black {
+    left: 10vw;
+}
+
+#table > .bar.keeper.white {
+    right: 10vw;
+}
+
+#table > .bar.defense.black {
+    left: 21vw;
+}
+
+#table > .bar.defense.white {
+    right: 21vw;
+}
+
+#table > .bar.attack.black {
+    right: 32vw;
+}
+
+#table > .bar.attack.white {
+    left: 32vw;
+}
+
+#table > .bar.center.black {
+    left: 43vw;
+}
+
+#table > .bar.center.white {
+    right: 43vw;
+}
+
+#table > .bar > .player {
+    width: var(--player-size);
+    height: var(--player-size);
+    border-radius: 50%;
+    position: absolute;
+    left: calc(var(--player-size) * (-0.5) + var(--bar-size) * 0.5);
+    color: white;
+}
+#table > .bar > .player.impact {
+    outline: red solid 10px;
+}
+
+#table > .bar.black > .player {
+    background-color: black;
+}
+
+#table > .bar.white > .player {
+    background-color: yellow;
+}
+
+#table > .bar.keeper > .p1 {
+    top: calc( ( var(--field-height) / 2 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.defense > .p1 {
+    top: calc( ( var(--field-height) / 1.5 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.defense > .p2 {
+    top: calc( ( var(--field-height) / 3 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.center > .p1 {
+    top: calc( 1 * ( var(--field-height) / 6 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.center > .p2 {
+    top: calc( 2 * ( var(--field-height) / 6 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.center > .p3 {
+    top: calc( 3 * ( var(--field-height) / 6 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.center > .p4 {
+    top: calc( 4 * ( var(--field-height) / 6 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.center > .p5 {
+    top: calc( 5 * ( var(--field-height) / 6 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.attack > .p1 {
+    top: calc( 1 * ( var(--field-height) / 4 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.attack > .p2 {
+    top: calc( 2 * ( var(--field-height) / 4 ) + var(--player-size) * 0.5 );
+}
+
+#table > .bar.attack > .p3 {
+    top: calc( 3 * ( var(--field-height) / 4 ) + var(--player-size) * 0.5 );
+}
