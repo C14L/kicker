@@ -18,10 +18,15 @@ const mapBarPlayer = {
     5: [16,17,18],
     6: [19,20],
     7: [21],
-}
+};
+
+/* Activate a kick against a close ball. */
+const kickBars = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+const kickSpeed = [10, 10];
+
 const table = elTable.getBoundingClientRect();
 const playerMovement = { "up": -2, "down": 2 };
-const playerBars = { "left": 0, "right": 1 } /* This player's own bars controlled with "left" and "right" hand. */
+const playerBars = { "left": 0, "right": 1 }; /* This player's own bars controlled with "left" and "right" hand. */
 
 const goal = elsGoal[0].getBoundingClientRect();
 const playerRadius = elsPlayer[0].offsetWidth / 2;
@@ -50,12 +55,12 @@ window.addEventListener("keyup", ev => {
 });
 
 window.addEventListener("keydown", ev => {
-    if (ev.key == "w" && !leftMoveUpInterval) leftMoveUpInterval = setInterval(() => { barMove(playerBars.left, "up"); playerMovementIncr() });
-    if (ev.key == "s") console.log("left kick");
-    if (ev.key == "x" && !leftMoveDownInterval) leftMoveDownInterval = setInterval(() => { barMove(playerBars.left, "down"); playerMovementIncr() });
-    if (ev.key == "o" && !rightMoveUpInterval) rightMoveUpInterval = setInterval(() => { barMove(playerBars.right, "up"); playerMovementIncr() });
-    if (ev.key == "k") console.log("right kick");
-    if (ev.key == "m" && !rightMoveDownInterval) rightMoveDownInterval = setInterval(() => { barMove(playerBars.right, "down"); playerMovementIncr() });
+    if (ev.key == "w" && !leftMoveUpInterval) leftMoveUpInterval = setInterval(() => { moveBar(playerBars.left, "up"); playerMovementIncr() });
+    if (ev.key == "s") { kickBars[playerBars.left] = 1; setTimeout(() => { kickBars[playerBars.left] = 0; }, 200); }
+    if (ev.key == "x" && !leftMoveDownInterval) leftMoveDownInterval = setInterval(() => { moveBar(playerBars.left, "down"); playerMovementIncr() });
+    if (ev.key == "o" && !rightMoveUpInterval) rightMoveUpInterval = setInterval(() => { moveBar(playerBars.right, "up"); playerMovementIncr() });
+    if (ev.key == "k") { kickBars[playerBars.right] = 1; setTimeout(() => { kickBars[playerBars.right] = 0; }, 200); }
+    if (ev.key == "m" && !rightMoveDownInterval) rightMoveDownInterval = setInterval(() => { moveBar(playerBars.right, "down"); playerMovementIncr() });
 });
 
 class Ball {
@@ -119,7 +124,7 @@ class Ball {
     }
 }
 
-function barMove(barIndex, dir) {
+function moveBar(barIndex, dir) {
     const newTop = elsBar[barIndex].getBoundingClientRect().top + playerMovement[dir];
     requestAnimationFrame(() => elsBar[barIndex].style.top = newTop + "px");
 }
@@ -144,26 +149,31 @@ function play() {
                 elNumbersVelocity_t.innerHTML = Math.round(ball.vt * 10000) / 10000;
                 elNumbersVelocity_x.innerHTML = Math.round(ball.x * 10000) / 10000;
                 elNumbersVelocity_y.innerHTML = Math.round(ball.y * 10000) / 10000;
-                const pos = getCenterXY(elBall)
+
+                const pos = getCenterXY(elBall);
                 elBall.innerHTML =  Math.round(pos[0]) + " " + Math.round(pos[1]);
                 elsPlayer.forEach(p => {
                     const pos = getCenterXY(p);
                     p.innerHTML = Math.round(pos[0]) + " " + Math.round(pos[1]);
                 });
+
                 ball.move();
                 ball.draw();
                 collission = getGoalCollission(ball);
+
                 if (!ball.stop && collission) {
                     ball.goalHit = true;
                     ball.stop = true;
                     console.log("Goal hit, interval canceled.");
                     resolve(collission);
                 }
+
                 if ( !ball.stop && isPlayerCollission(ball) ) {
                     // ball.stop = true;
                     console.log("Player hit, interval canceled.");
                     resolve(collission);
                 }
+
                 if ( !ball.stop ) {
                     isWallCollission(ball);
                 }
@@ -187,7 +197,7 @@ function isPlayerCollission(ball) {
 
         if ( ball.x + ballRadius > cx - playerRadius && ball.x - ballRadius < cx + playerRadius ) {
             elsBar[i].classList.add("impact");
-            setTimeout(()=>{elsBar[i].classList.remove("impact")}, 100);
+            setTimeout(() => { elsBar[i].classList.remove("impact"); }, 100);
 
             mapBarPlayer[i].forEach(pi => {
                 const cy = getCenterXY(elsPlayer[pi])[1];
@@ -195,8 +205,12 @@ function isPlayerCollission(ball) {
                 if ( ball.y + ballRadius > cy - playerRadius && ball.y - ballRadius < cy + playerRadius ) {
                     console.log("ball is in player range");
                     elsPlayer[pi].classList.add("impact");
-                    setTimeout(()=>{elsPlayer[pi].classList.remove("impact")}, 100);
+                    setTimeout(() => { elsPlayer[pi].classList.remove("impact"); }, 100);
                     setDeflectionVelocities(ball, cx, cy);
+                    if ( kickBars[pi] ) {
+                        ball.v[0] = kickSpeed[0];
+                        ball.v[1] = kickSpeed[0];
+                    }
                 }
             });
         }
@@ -230,4 +244,4 @@ function isWallCollission(ball) {
     if (ball.y < ball.yMin && ball.v[1] < 0) { ball.v[1] *= -1; console.log("ball wall collission", ball); }
 }
 
-play().then(result => { alert("Goal for " + result) });
+play().then(result => { alert("Goal for " + result); });
