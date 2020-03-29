@@ -134,11 +134,11 @@ body {
 }
 
 #table > .bar.defense > .p1 {
-    top: calc( ( var(--field-height) / 1.5 ) + var(--player-size) * 0.5 );
+    top: calc( ( var(--field-height) / 3 ) + var(--player-size) * 0.5 );
 }
 
 #table > .bar.defense > .p2 {
-    top: calc( ( var(--field-height) / 3 ) + var(--player-size) * 0.5 );
+    top: calc( ( var(--field-height) / 1.5 ) + var(--player-size) * 0.5 );
 }
 
 #table > .bar.center > .p1 {

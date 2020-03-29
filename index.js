@@ -1,3 +1,8 @@
+
+ws = new WebSocket("/ws");
+
+const [gameId, userId] = location.pathname.substr(1).split('/');
+
 // DOM elements
 const elTable = document.querySelector("#table");
 const elBall = document.querySelector("#table > .ball");
@@ -9,6 +14,8 @@ const elNumbersVelocity_t = elNumbersVelocity.querySelector(".t");
 const elNumbersVelocity_x = elNumbersVelocity.querySelector(".x");
 const elNumbersVelocity_y = elNumbersVelocity.querySelector(".y");
 
+const table = elTable.getBoundingClientRect();
+const goal = elsGoal[0].getBoundingClientRect();
 const mapBarPlayer = {
     0: [ 0],
     1: [ 1, 2],
@@ -20,15 +27,29 @@ const mapBarPlayer = {
     7: [21],
 };
 
+const barsLimits = [
+    [
+        table.top - elsPlayer[mapBarPlayer[0][0]].getBoundingClientRect().top,
+        table.bottom - elsPlayer[mapBarPlayer[0][mapBarPlayer[0].length-1]].getBoundingClientRect().bottom,
+    ],
+    [
+        table.top - elsPlayer[mapBarPlayer[1][0]].getBoundingClientRect().top,
+        table.bottom - elsPlayer[mapBarPlayer[1][mapBarPlayer[1].length-1]].getBoundingClientRect().bottom,
+    ],
+    [
+        table.top - elsPlayer[mapBarPlayer[2][0]].getBoundingClientRect().top,
+        table.bottom - elsPlayer[mapBarPlayer[2][mapBarPlayer[2].length-1]].getBoundingClientRect().bottom,
+    ],
+];
+
+
 /* Activate a kick against a close ball. */
 const kickBars = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
 const kickSpeed = [10, 10];
 
-const table = elTable.getBoundingClientRect();
 const playerMovement = { "up": -2, "down": 2 };
 const playerBars = { "left": 0, "right": 1 }; /* This player's own bars controlled with "left" and "right" hand. */
 
-const goal = elsGoal[0].getBoundingClientRect();
 const playerRadius = elsPlayer[0].offsetWidth / 2;
 const ballRadius = elBall.offsetWidth / 2;
 
@@ -55,12 +76,12 @@ window.addEventListener("keyup", ev => {
 });
 
 window.addEventListener("keydown", ev => {
-    if (ev.key == "w" && !leftMoveUpInterval) leftMoveUpInterval = setInterval(() => { moveBar(playerBars.left, "up"); playerMovementIncr() });
+    if (ev.key == "w" && !leftMoveUpInterval) leftMoveUpInterval = setInterval(() => { moveBar(playerBars.left, "up"); playerMovementIncr(); });
     if (ev.key == "s") { kickBars[playerBars.left] = 1; setTimeout(() => { kickBars[playerBars.left] = 0; }, 200); }
-    if (ev.key == "x" && !leftMoveDownInterval) leftMoveDownInterval = setInterval(() => { moveBar(playerBars.left, "down"); playerMovementIncr() });
-    if (ev.key == "o" && !rightMoveUpInterval) rightMoveUpInterval = setInterval(() => { moveBar(playerBars.right, "up"); playerMovementIncr() });
+    if (ev.key == "x" && !leftMoveDownInterval) leftMoveDownInterval = setInterval(() => { moveBar(playerBars.left, "down"); playerMovementIncr(); });
+    if (ev.key == "o" && !rightMoveUpInterval) rightMoveUpInterval = setInterval(() => { moveBar(playerBars.right, "up"); playerMovementIncr(); });
     if (ev.key == "k") { kickBars[playerBars.right] = 1; setTimeout(() => { kickBars[playerBars.right] = 0; }, 200); }
-    if (ev.key == "m" && !rightMoveDownInterval) rightMoveDownInterval = setInterval(() => { moveBar(playerBars.right, "down"); playerMovementIncr() });
+    if (ev.key == "m" && !rightMoveDownInterval) rightMoveDownInterval = setInterval(() => { moveBar(playerBars.right, "down"); playerMovementIncr(); });
 });
 
 class Ball {
@@ -126,6 +147,8 @@ class Ball {
 
 function moveBar(barIndex, dir) {
     const newTop = elsBar[barIndex].getBoundingClientRect().top + playerMovement[dir];
+    if (dir == "up" && newTop < barsLimits[barIndex][0]) return;
+    if (dir == "down" && newTop > barsLimits[barIndex][1]) return;
     requestAnimationFrame(() => elsBar[barIndex].style.top = newTop + "px");
 }
 
