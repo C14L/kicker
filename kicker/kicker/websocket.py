@@ -8,17 +8,6 @@ global_scope = defaultdict(dict)
 game_init = {
     'users': [],  # list of 4 user names
     'connections': [],  # list of 4 user send methods
-    'ball': {  # ball position/movement
-        'x': 0,
-        'y': 0,
-        'vx': 0,
-        'vy': 0,
-    },
-    'lead': '',  # Leading user for sync of ball position/movement
-    'score': {
-        'white': 0,
-        'black': 0,
-    },
 }
 
 
@@ -34,8 +23,6 @@ async def websocket_application(scope, receive, send):
             print("### CONNECT ###")
 
         if event['type'] == 'websocket.disconnect':
-            if user_id not in _global_scope['games'][game_id]['users']:
-                _global_scope['games'][game_id]['users'].append(user_id)
             print("### DISCONNECT ###")
             print(global_scope)
             break
@@ -70,6 +57,9 @@ async def websocket_application(scope, receive, send):
                             'action': 'playerlist',
                             'playerlist': _global_scope['games'][game_id]['users'],
                         })
+                else:
+                    await ws_send(_global_scope['games'][game_id]['connections'], data)
+
             print(global_scope)
 
 

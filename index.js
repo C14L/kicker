@@ -39,14 +39,16 @@ ws.addEventListener('message', event => {
     console.log(event.data);
     let response = JSON.parse(event.data);
 
-    if (response.action == "") {
+    if (response.action == "sync") {
+        settings.ball = response.ball;
+        settings.players = response.players;
+        ws.send(JSON.stringify({"action": "syncok"}));
     }
 
     if (response.action == "syncok") {
+        syncOkCount++;
         if (settings.isServer && syncOkCount == 4) {
-            ws.send(JSON.stringify({
-                "action": "play",
-            }));
+            ws.send(JSON.stringify({"action": "play"}));
         }
     }
 
