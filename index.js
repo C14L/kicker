@@ -4,8 +4,9 @@ const elBall = document.querySelector("#table > .ball");
 const elsGoal = document.querySelectorAll("#table > .goal");
 const elsBar = document.querySelectorAll("#table > .bar");
 const elsPlayer = document.querySelectorAll("#table > .bar > .player");
-const elNumbersVelocity = document.querySelector("#numbers > .velocity");
+const elNumbersWebsocket = document.querySelector("#numbers > .websocket");
 const elNumbersPlayers = document.querySelector("#numbers > .players");
+const elNumbersVelocity = document.querySelector("#numbers > .velocity");
 const elNumbersVelocity_t = elNumbersVelocity.querySelector(".t");
 const elNumbersVelocity_x = elNumbersVelocity.querySelector(".x");
 const elNumbersVelocity_y = elNumbersVelocity.querySelector(".y");
@@ -26,6 +27,7 @@ ws = new WebSocket("ws://localhost:8000/");
 
 ws.addEventListener('open', event => {
     console.log(event.data);
+    elNumbersWebsocket.style.backgroundColor = 'yellow';
     ws.send(JSON.stringify({
         "action": "register",
         "game": settings.gameId,
@@ -47,12 +49,14 @@ ws.addEventListener('message', event => {
 
     if (response.action == "syncok") {
         syncOkCount++;
+        elNumbersWebsocket.style.innerHTML = syncOkCount;
         if (settings.isServer && syncOkCount == 4) {
             ws.send(JSON.stringify({"action": "play"}));
         }
     }
 
     if (response.action == "play") {
+        elNumbersWebsocket.style.backgroundColor = 'green';
         play().then(result => { alert("Goal for " + result); });
     }
 
@@ -187,7 +191,7 @@ class Ball {
     }
     get vt() {
         let vt = Math.sqrt(this.v[0]**2 + this.v[1]**2);
-        return vt
+        return vt;
     }
     move() {
         if (this.goalHit) return;
@@ -276,20 +280,23 @@ function getGoalCollission(ball) {
 function isPlayerCollission(ball) {
     const ft = ( ball.x <= table.width / 2 + table.left ) ? [0,3] : [4,7];
     for ( let i = ft[0]; i <= ft[1]; i++ ) {
-        const cx = getCenterXY(elsBar[i])[0];
+        const px = getCenterXY(elsBar[i])[0];
 
-        if ( ball.x + ballRadius > cx - playerRadius && ball.x - ballRadius < cx + playerRadius ) {
+        if ( ball.x + ballRadius > px - playerRadius && ball.x - ballRadius < px + playerRadius ) {
             elsBar[i].classList.add("impact");
+            /* jshint -W083 */
             setTimeout(() => { elsBar[i].classList.remove("impact"); }, 100);
-
             mapBarPlayer[i].forEach(pi => {
-                const cy = getCenterXY(elsPlayer[pi])[1];
-
-                if ( ball.y + ballRadius > cy - playerRadius && ball.y - ballRadius < cy + playerRadius ) {
-                    console.log("ball is in player range");
+                /* jshint +W083 */
+                const [px, py] = getCenterXY(elsPlayer[pi]);
+                const ab = Math.pow(ball.x - px, 2) + Math.pow(ball.y - py);
+                const c = Math.pow(ballRadius + playerRadius);
+                if (ab <= c) {
                     elsPlayer[pi].classList.add("impact");
                     setTimeout(() => { elsPlayer[pi].classList.remove("impact"); }, 100);
-                    setDeflectionVelocities(ball, cx, cy);
+                    console.log("ball is in player range");
+                    setDeflectionVelocities(ball, px, py);
+
                     if ( kickBars[pi] ) {
                         ball.v[0] = kickSpeed[0];
                         ball.v[1] = kickSpeed[0];
