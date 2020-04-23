@@ -16,6 +16,9 @@ const elems = {
     },
 };
 
+const table = fixTableAndGetBoundingClientRect(elems.table);
+const goal = fixGoalsAndGetBoundingClientRect(elems.goals)[0];
+
 const settings = {
     gameId: location.pathname.substr(1).split('/')[0],
     userId: location.pathname.substr(1).split('/')[1],
@@ -23,9 +26,15 @@ const settings = {
     drag: 0.8,
     ballReset: { vx: 0, vy: 0, ax: 1.0, ay: 0 },
     ball: { vx: Math.random() * 20, vy: Math.random() * 20, ax: 0.995, ay: 0.995 },
+    playerRadius: elems.players[0].offsetWidth / 2,
+    ballRadius: elems.ball.offsetWidth / 2,
+    mapBarPlayer: [[0], [1, 2], [3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18], [19, 20], [21]],
 };
 
-let syncOkCount = 0;
+const status = {
+    syncOkCount: 0,
+};
+
 ws = new WebSocket("ws://localhost:8000/");
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('message', handleWebsocketMessage);
@@ -47,14 +56,14 @@ function handleWebsocketMessage(event) {
     if (response.action == "sync") {
         settings.ball = response.ball;
         settings.players = response.players;
-        ws.send(JSON.stringify({"action": "syncok"}));
+        ws.send(JSON.stringify({ "action": "syncok" }));
     }
 
     if (response.action == "syncok") {
-        syncOkCount++;
-        elems.numbers.websocket.style.innerHTML = syncOkCount;
-        if (settings.isServer && syncOkCount == 4) {
-            ws.send(JSON.stringify({"action": "play"}));
+        status.syncOkCount++;
+        elems.numbers.websocket.style.innerHTML = status.syncOkCount;
+        if (settings.isServer && status.syncOkCount == 4) {
+            ws.send(JSON.stringify({ "action": "play" }));
         }
     }
 
@@ -81,31 +90,19 @@ function handleWebsocketMessage(event) {
     }
 }
 
-const table = elems.table.getBoundingClientRect();
-const goal = elems.goals[0].getBoundingClientRect();
-const mapBarPlayer = {
-    0: [0],
-    1: [1, 2],
-    2: [3, 4, 5],
-    3: [6, 7, 8, 9,10],
-    4: [11, 12, 13, 14, 15],
-    5: [16, 17, 18],
-    6: [19, 20],
-    7: [21],
-};
 
 const barsLimits = [
     [
-        table.top - elems.players[mapBarPlayer[0][0]].getBoundingClientRect().top,
-        table.bottom - elems.players[mapBarPlayer[0][mapBarPlayer[0].length-1]].getBoundingClientRect().bottom,
+        table.top - elems.players[settings.mapBarPlayer[0][0]].getBoundingClientRect().top,
+        table.bottom - elems.players[settings.mapBarPlayer[0][settings.mapBarPlayer[0].length - 1]].getBoundingClientRect().bottom,
     ],
     [
-        table.top - elems.players[mapBarPlayer[1][0]].getBoundingClientRect().top,
-        table.bottom - elems.players[mapBarPlayer[1][mapBarPlayer[1].length-1]].getBoundingClientRect().bottom,
+        table.top - elems.players[settings.mapBarPlayer[1][0]].getBoundingClientRect().top,
+        table.bottom - elems.players[settings.mapBarPlayer[1][settings.mapBarPlayer[1].length - 1]].getBoundingClientRect().bottom,
     ],
     [
-        table.top - elems.players[mapBarPlayer[2][0]].getBoundingClientRect().top,
-        table.bottom - elems.players[mapBarPlayer[2][mapBarPlayer[2].length-1]].getBoundingClientRect().bottom,
+        table.top - elems.players[settings.mapBarPlayer[2][0]].getBoundingClientRect().top,
+        table.bottom - elems.players[settings.mapBarPlayer[2][settings.mapBarPlayer[2].length - 1]].getBoundingClientRect().bottom,
     ],
 ];
 
@@ -116,9 +113,6 @@ const kickSpeed = [10, 10];
 
 const playerMovement = { "up": -2, "down": 2 };
 const playerBars = { "left": 0, "right": 1 }; /* This player's own bars controlled with "left" and "right" hand. */
-
-const playerRadius = elems.players[0].offsetWidth / 2;
-const ballRadius = elems.ball.offsetWidth / 2;
 
 let leftMoveUpInterval = false;
 let leftMoveDownInterval = false;
@@ -161,12 +155,12 @@ class Ball {
     reset() {
         this.goalHit = false;
         this.stop = false;
-        this.x = table.left + ballRadius;
-        this.y = table.top + ballRadius;
-        this.xMin = table.left + ballRadius;
-        this.yMin = table.top + ballRadius;
-        this.xMax = table.right - ballRadius;
-        this.yMax = table.bottom - ballRadius;
+        this.x = table.left + settings.ballRadius;
+        this.y = table.top + settings.ballRadius;
+        this.xMin = table.left + settings.ballRadius;
+        this.yMin = table.top + settings.ballRadius;
+        this.xMax = table.right - settings.ballRadius;
+        this.yMax = table.bottom - settings.ballRadius;
         this.vx = settings.ballReset.vx;
         this.vy = settings.ballReset.vy;
         this.ax = settings.ballReset.ax;  // 1=constant velocity
@@ -180,7 +174,7 @@ class Ball {
         this.ay = settings.ball.ay;
     }
     get vt() {
-        let vt = Math.sqrt(this.vx**2 + this.vy**2);
+        let vt = Math.sqrt(this.vx ** 2 + this.vy ** 2);
         return vt;
     }
     move() {
@@ -192,8 +186,8 @@ class Ball {
         this.y += this.vy;
     }
     draw() {
-        elems.ball.style.left = this.x - ballRadius + "px";
-        elems.ball.style.top = this.y - ballRadius + "px";
+        elems.ball.style.left = this.x - settings.ballRadius + "px";
+        elems.ball.style.top = this.y - settings.ballRadius + "px";
     }
 }
 
@@ -218,7 +212,7 @@ function play() {
         ball.start();
 
         animationInterval = setInterval(() => {
-            if ( ball.stop ) {
+            if (ball.stop) {
                 clearInterval(animationInterval);
                 animationInterval = null;
             }
@@ -229,7 +223,7 @@ function play() {
                 elems.numbers.velocity.y.innerHTML = Math.round(ball.y * 10000) / 10000;
 
                 const pos = getCenterXY(elems.ball);
-                elems.ball.innerHTML =  Math.round(pos[0]) + " " + Math.round(pos[1]);
+                elems.ball.innerHTML = Math.round(pos[0]) + " " + Math.round(pos[1]);
                 elems.players.forEach(p => {
                     const pos = getCenterXY(p);
                     p.innerHTML = Math.round(pos[0]) + " " + Math.round(pos[1]);
@@ -246,13 +240,13 @@ function play() {
                     resolve(collission);
                 }
 
-                if ( !ball.stop && isPlayerCollission(ball) ) {
+                if (!ball.stop && isPlayerCollission(ball)) {
                     // ball.stop = true;
                     console.log("Player hit, interval canceled.");
                     resolve(collission);
                 }
 
-                if ( !ball.stop ) {
+                if (!ball.stop) {
                     isWallCollission(ball);
                 }
             });
@@ -269,19 +263,19 @@ function getGoalCollission(ball) {
 }
 
 function isPlayerCollission(ball) {
-    const ft = ( ball.x <= table.width / 2 + table.left ) ? [0,3] : [4,7];
-    const c = Math.pow(ballRadius + playerRadius, 2);
+    const ft = (ball.x <= table.width / 2 + table.left) ? [0, 3] : [4, 7];
+    const c = Math.pow(settings.ballRadius + settings.playerRadius, 2);
     console.log("c is always", c);
 
-    for ( let i = ft[0]; i <= ft[1]; i++ ) {
+    for (let i = ft[0]; i <= ft[1]; i++) {
         const barx = getCenterXY(elems.bars[i])[0];
 
-        if ( ball.x + ballRadius > barx - playerRadius && ball.x - ballRadius < barx + playerRadius ) {
+        if (ball.x + settings.ballRadius > barx - settings.playerRadius && ball.x - settings.ballRadius < barx + settings.playerRadius) {
             elems.bars[i].classList.add("impact");
             /* jshint -W083 */
             setTimeout(() => { elems.bars[i].classList.remove("impact"); }, 100);
 
-            mapBarPlayer[i].forEach(pi => {
+            settings.mapBarPlayer[i].forEach(pi => {
                 /* jshint +W083 */
                 const [playerx, playery] = getCenterXY(elems.players[pi]);
                 const ab = Math.pow(ball.x - playerx, 2) + Math.pow(ball.y - playery, 2);
@@ -293,7 +287,7 @@ function isPlayerCollission(ball) {
                     console.log("ball is in player range");
                     setDeflectionVelocities(ball, playerx, playery);
 
-                    if ( kickBars[pi] ) {
+                    if (kickBars[pi]) {
                         ball.vx = kickSpeed[0];
                         ball.vy = kickSpeed[0];
                     }
@@ -305,22 +299,22 @@ function isPlayerCollission(ball) {
 
 function setDeflectionVelocities(ball, cx, cy) {
     /* TODO: Now do a more precise check taking curvature into account */
-    if ( ball.x < cx && ball.y < cy ) {
+    if (ball.x < cx && ball.y < cy) {
         ball.vx *= -1;
         ball.vy *= -1;
     } else
-    if ( ball.x < cx && ball.y >= cy ) {
-        ball.vx *= -1;
-        // ball.vy *= -1;
-    } else
-    if ( ball.x >= cx && ball.y > cy ) {
-        ball.vx *= -1;
-        // ball.vy *= -1;
-    } else
-    if ( ball.x >= cx && ball.y < cy ) {
-        ball.vx *= -1;
-        ball.vy *= -1;
-    }
+        if (ball.x < cx && ball.y >= cy) {
+            ball.vx *= -1;
+            // ball.vy *= -1;
+        } else
+            if (ball.x >= cx && ball.y > cy) {
+                ball.vx *= -1;
+                // ball.vy *= -1;
+            } else
+                if (ball.x >= cx && ball.y < cy) {
+                    ball.vx *= -1;
+                    ball.vy *= -1;
+                }
 }
 
 function isWallCollission(ball) {
@@ -328,4 +322,24 @@ function isWallCollission(ball) {
     if (ball.x < ball.xMin && ball.vx < 0) { ball.vx *= -1; console.log("ball wall collission", ball); }
     if (ball.y > ball.yMax && ball.vy > 0) { ball.vy *= -1; console.log("ball wall collission", ball); }
     if (ball.y < ball.yMin && ball.vy < 0) { ball.vy *= -1; console.log("ball wall collission", ball); }
+}
+
+function fixTableAndGetBoundingClientRect(elemTable) {
+    let table = elemTable.getBoundingClientRect();
+    elemTable.style.top = table.top + "px";
+    elemTable.style.left = table.left + "px";
+    elemTable.style.width = table.width + "px";
+    elemTable.style.height = table.height + "px";
+    return elemTable.getBoundingClientRect();
+}
+
+function fixGoalsAndGetBoundingClientRect(elemGoals) {
+    elemGoals.forEach((elG, i) => {
+        let goal = elG.getBoundingClientRect();
+        elemGoals[i].style.top = goal.top + "px";
+        elemGoals[i].style.left = goal.left + "px";
+        elemGoals[i].style.width = goal.width + "px";
+        elemGoals[i].style.height = goal.height + "px";
+    });
+    return [elemGoals[0].getBoundingClientRect(), elemGoals[1].getBoundingClientRect()];
 }
