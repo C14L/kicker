@@ -270,24 +270,28 @@ function getGoalCollission(ball) {
 
 function isPlayerCollission(ball) {
     const ft = ( ball.x <= table.width / 2 + table.left ) ? [0,3] : [4,7];
-    for ( let i = ft[0]; i <= ft[1]; i++ ) {
-        const px = getCenterXY(elems.bars[i])[0];
+    const c = Math.pow(ballRadius + playerRadius, 2);
+    console.log("c is always", c);
 
-        if ( ball.x + ballRadius > px - playerRadius && ball.x - ballRadius < px + playerRadius ) {
+    for ( let i = ft[0]; i <= ft[1]; i++ ) {
+        const barx = getCenterXY(elems.bars[i])[0];
+
+        if ( ball.x + ballRadius > barx - playerRadius && ball.x - ballRadius < barx + playerRadius ) {
             elems.bars[i].classList.add("impact");
             /* jshint -W083 */
             setTimeout(() => { elems.bars[i].classList.remove("impact"); }, 100);
+
             mapBarPlayer[i].forEach(pi => {
                 /* jshint +W083 */
-                const [px, py] = getCenterXY(elems.players[pi]);
-                const ab = Math.pow(ball.x - px, 2) + Math.pow(ball.y - py);
-                const c = Math.pow(ballRadius + playerRadius);
+                const [playerx, playery] = getCenterXY(elems.players[pi]);
+                const ab = Math.pow(ball.x - playerx, 2) + Math.pow(ball.y - playery, 2);
+                console.log("ab", ab);
 
                 if (ab <= c) {
                     elems.players[pi].classList.add("impact");
                     setTimeout(() => { elems.players[pi].classList.remove("impact"); }, 100);
                     console.log("ball is in player range");
-                    setDeflectionVelocities(ball, px, py);
+                    setDeflectionVelocities(ball, playerx, playery);
 
                     if ( kickBars[pi] ) {
                         ball.vx = kickSpeed[0];
