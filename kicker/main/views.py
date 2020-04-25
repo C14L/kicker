@@ -7,6 +7,8 @@ def home(request):
 
 
 def game(request, game_id, username):
+    """Serve HTML/JS/CSS during development as a single file."""
+
     with open('../index.js', 'r') as fh:
         js = ''.join(fh.readlines())
     with open('../index.css', 'r') as fh:

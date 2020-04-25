@@ -16,6 +16,15 @@ body {
     top: calc(var(--field-margin) + 20px);
     left: calc(var(--field-margin) + 20px);
 }
+#numbers > .score {
+    font-size: xx-large;
+    font-weight: bold;
+    color: black;
+    background: rgba(255,255,255,0.5);
+}
+#numbers > .score > .left {}
+#numbers > .score > .divider {}
+#numbers > .score > .right {}
 #numbers > .websocket {
     width: 20px;
     height: 20px;

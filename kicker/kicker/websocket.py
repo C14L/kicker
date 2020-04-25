@@ -15,8 +15,12 @@ async def websocket_application(scope, receive, send):
     _global_scope = globals()['global_scope']
 
     while True:
+        _user = {
+            "id": None,
+        }
         event = await receive()
         print(event)
+        print(_user["id"])
 
         if event['type'] == 'websocket.connect':
             await send({'type': 'websocket.accept'})
@@ -24,7 +28,21 @@ async def websocket_application(scope, receive, send):
 
         if event['type'] == 'websocket.disconnect':
             print("### DISCONNECT ###")
-            print(global_scope)
+            print(_global_scope)
+            user_id = _global_scope['connections'][send]
+            print(user_id)
+            game_id = _global_scope['users'][user_id]
+            print(game_id)
+            _global_scope['games'][game_id]['users'].remove(user_id)
+            _global_scope['games'][game_id]['connections'].remove(send)
+            del _global_scope['connections'][send]
+            del _global_scope['users'][user_id]
+            print(_global_scope)
+
+            await ws_send(_global_scope['games'][game_id]['connections'], {
+                'action': 'playerlist',
+                'playerlist': _global_scope['games'][game_id]['users'],
+            })
             break
 
         if event['type'] == 'websocket.receive':
@@ -39,6 +57,7 @@ async def websocket_application(scope, receive, send):
                 if data['action'] == 'register':
                     game_id = data['game']
                     user_id = data['user']
+                    _user["id"] = user_id
 
                     if game_id not in _global_scope['games']:
                         _global_scope['games'][game_id] = deepcopy(game_init)
@@ -52,6 +71,8 @@ async def websocket_application(scope, receive, send):
                         if user_id not in _global_scope['games'][game_id]['users']:
                             _global_scope['games'][game_id]['users'].append(user_id)
                             _global_scope['games'][game_id]['connections'].append(send)
+                            _global_scope['connections'][send] = user_id
+                            _global_scope['users'][user_id] = game_id
 
                         await ws_send(_global_scope['games'][game_id]['connections'], {
                             'action': 'playerlist',
