@@ -45,6 +45,7 @@ elems.bars.forEach((elem, idx) => {
 });
 
 const status = {
+    hold: true,
     gameOver: false,
     goalHit: false,
     syncOkCount: 0,
@@ -58,13 +59,13 @@ const status = {
     rightMoveDownInterval: false,
 };
 
-
 ws = new WebSocket("ws://localhost:8000/");
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
 ws.addEventListener('message', handleWebsocketMessage);
 window.addEventListener("keyup", handleKeyUp);
 window.addEventListener("keydown", handleKeyDown);
+window.addEventListener("keypress", handleKeyPress);
 
 function handleWebsocketOpen(event) {
     console.log("handleWebsocketOpen", event.data);
@@ -104,6 +105,7 @@ function handleWebsocketMessage(event) {
                 resetGame();
                 ws.send(JSON.stringify({
                     "action": "sync",
+                    "hold": status.hold,
                     "table": items.table,
                     "goals": items.goals,
                     "ball": items.ball,
@@ -192,9 +194,14 @@ function handleWebsocketMessage(event) {
         }
     }
 
+    if (response.action == "statusupdate") {
+        status[response.key] = response.val;
+        console.log("New status set key, value:", response.key, response.val);
+    }
+
     if (response.action == "finish") {
         // End of game by goal count
-        alert("Winner is: ", result.winner);
+        alert("Winner is: ", response.winner);
         status.gameOver = true;
     }
 }
@@ -232,6 +239,13 @@ function handleKeyDown(event) {
     if (event.key == "m" && !status.rightMoveDownInterval) status.rightMoveDownInterval = setInterval(() => { moveBar(status.playerBars.right, "down"); playerMovementIncr(); });
 }
 
+function handleKeyPress(event) {
+    if (event.key == "p") {
+        status.hold = !status.hold;
+        ws.send(JSON.stringify({ "action": "statusupdate", "key": "hold", "val": status.hold }));
+    }
+}
+
 function moveBar(barIndex, dir) {
     const newTop = elems.bars[barIndex].getBoundingClientRect().top + status.playerMovement[dir];
     if (dir == "up" && newTop < items.bars.limits[barIndex][0]) return;
@@ -258,6 +272,12 @@ function gamePlay() {
         gameInit();
 
         animationInterval = setInterval(() => {
+            if ( ! status.hold ) {
+                moveBall();
+                handlePlayerCollission();
+                handleWallCollission();
+            }
+
             window.requestAnimationFrame(() => {
                 writeNumbers();
 
@@ -269,7 +289,6 @@ function gamePlay() {
                     p.innerHTML = Math.round(pos[0]) + " " + Math.round(pos[1]);
                 });
 
-                moveBall();
                 drawBall();
             });
 
@@ -281,9 +300,6 @@ function gamePlay() {
                 console.log("Goal hit, interval canceled.");
                 return goalCollission;
             }
-
-            handlePlayerCollission();
-            handleWallCollission();
         }, 10);
     });
 }
@@ -403,7 +419,6 @@ function ballAVec() {
 }
 
 function moveBall() {
-    if (status.goalHit) return;
     if (ballVVec() < 0.15) { items.ball.ax = 0; items.ball.ay = 0; }
     items.ball.vx *= items.ball.ax;
     items.ball.vy *= items.ball.ay;
