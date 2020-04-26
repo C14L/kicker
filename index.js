@@ -1,4 +1,5 @@
 
+// TODO: sync inicial player spacing on bars -- currently only table and goals are sync'ed with Server.
 // TODO: asign each player their pair of bars
 // TODO: sync bar movement between tables
 // TODO: ball physics: speed and drag
@@ -69,6 +70,37 @@ const status = {
     ballSyncInterval: null,
 };
 
+////////////////////////////////////////////////////////////////////////////////////////
+
+function handleKeyUp(event) {
+    if (event.key == "w") barClearInterval("leftMoveUpInterval");
+    if (event.key == "x") barClearInterval("leftMoveDownInterval");
+    if (event.key == "o") barClearInterval("rightMoveUpInterval");
+    if (event.key == "m") barClearInterval("rightMoveDownInterval");
+}
+
+function handleKeyDown(event) {
+    if (event.key == "s") { status.kickBars[status.playerBars.left] = 1; setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200); }
+    if (event.key == "k") { status.kickBars[status.playerBars.right] = 1; setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200); }
+    if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
+    if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
+    if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
+    if (event.key == "m") barSetInterval("rightMoveDownInterval", "right", "down");
+}
+
+function handleKeyPress(event) {
+    if (event.key == "p") { // Pause game
+        status.hold = !status.hold;
+        wsSend("statusupdate", { "key": "hold", "val": status.hold });
+    }
+    if (event.key == "b") { // Add random velocity to ball
+        randomizeBall();
+        wsSend("playstart", { "ball": items.ball });
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+
 ws = new WebSocket("ws://localhost:8000/");
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
@@ -105,103 +137,93 @@ function handleWebsocketMessage(event) {
     console.log("handleWebsocketMessage", event.data);
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
-
     if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
-
-    if (response.action == "gamesync") {
-        // console.log("Received 'gamesync' action with 'items' being: ", items);
-        // Request to sync with master
-        items.table = response.table;
-        items.goals = response.goals;
-        items.ball = response.ball;
-        items.player = response.player;
-        items.bars = response.bars;
-        //items.players = response.players;
-        // console.log("Updated items due to 'gamesync' action to: ", items);
-        resizeTableAndGetDOMRect(items.table);
-        resizeGoalsAndGetDOMRect(items.goals);
-        wsSend("syncok", { "player": settings.userId });
-    }
-
-    if (response.action == "syncok") {
-        // A sync was finished, count players ready
-        if (status.syncOk.indexOf(response.player) == -1) status.syncOk.push(response.player);
-
-        writeWsConnectCount();
-        if (settings.isServer && status.syncOk.length == settings.playerLimit) {
-            // TODO: check if every player is registered only once and that registered and sync'ed players match
-            wsSend("playprepare");
-        }
-    }
-
-    if (response.action == "playprepare") {
-        writeWsStatus('green');
-        writeScore();
-        if (settings.isServer) {
-            randomizeBall();
-            wsSend("playstart", { "ball": items.ball });
-        }
-    }
-
-    if (response.action == "playstart") {
-        items.ball = response.ball;
-        gamePlay();
-    }
-
-    if (response.action == "ballsync") {
-        items.ball = response.ball;
-    }
-
-    if (response.action == "newgoal") {
-        status.goalHit = true;
-        clearInterval(status.animationInterval);
-        clearInterval(status.ballSyncInterval);
-        status.animationInterval = null;
-        status.ballSyncInterval = null;
-        // console.log("Goal hit, interval canceled.");
-
-        if (settings.isServer) {
-            status.score[response.goalfor]++;
-            wsSend("statusupdate", { "key": "score", "val": status.score });
-            if (status.score.left >= 8 || status.score.rigth >= 8) {
-                wsSend("finish", { "winner": response.goalfor });
-            } else {
-                resetGame();
-            }
-        }
-    }
-
-    if (response.action == "statusupdate") {
-        status[response.key] = response.val;
-        // console.log("New status set key, value:", response.key, response.val);
-        writeNumbers();
-    }
-
-    if (response.action == "finish") {
-        // End of game by goal count
-        alert("Winner is: ", response.winner);
-        status.gameOver = true;
-    }
+    else if (response.action == "gamesync") handleWebsocketActionGameSync(response);
+    else if (response.action == "syncok") handleWebsocketActionSyncOk(response);
+    else if (response.action == "playprepare") handleWebsocketActionPlayPrepare(response);
+    else if (response.action == "playstart") handleWebsocketActionPlayStart(response);
+    else if (response.action == "ballsync") handleWebsocketActionBallSync(response);
+    else if (response.action == "newgoal") handleWebsocketActionNewGoal(response);
+    else if (response.action == "statusupdate") handleWebsocketActionStatusUpdate(response);
+    else if (response.action == "finish") handleWebsocketActionFinish(response);
 }
 
 function handleWebsocketActionPlayerlist(response) {
     status.hold = true;
     status.playerlist = response.playerlist;
     writePlayers();
+    if (response.playerlist.length == 1) settings.isServer = true;
+    else if (response.playerlist.length < settings.playerLimit) console.log("Waiting for more players:", response.playerlist);
+    else if (response.playerlist.length == settings.playerLimit && settings.isServer) resetGame();
+    else if (response.playerlist.length > settings.playerLimit) alert("Error, too many players. How did that happen?! o.O");
+}
 
-    if (response.playerlist.length == 1) {
-        settings.isServer = true;
-    }
-    if (response.playerlist.length < settings.playerLimit) {
-        // console.log("Waiting for more players:", response.playerlist);
-    }
-    if (response.playerlist.length == settings.playerLimit && settings.isServer) {
-        resetGame();
-    }
-    if (response.playerlist.length > settings.playerLimit) {
-        alert("Error, too many players. How did that happen?! o.O");
+function handleWebsocketActionGameSync(response) {
+    // console.log("Received 'gamesync' action with 'items' being: ", items);
+    items.table = response.table;
+    items.goals = response.goals;
+    items.ball = response.ball;
+    items.player = response.player;
+    items.bars = response.bars;
+    //items.players = response.players;
+    // console.log("Updated items due to 'gamesync' action to: ", items);
+    resizeTableAndGetDOMRect(items.table);
+    resizeGoalsAndGetDOMRect(items.goals);
+    wsSend("syncok", { "player": settings.userId });
+}
+
+function handleWebsocketActionSyncOk(response) {
+    // A sync was finished, count players ready
+    // TODO: check if every player is registered only once and that registered and sync'ed players match
+    if (status.syncOk.indexOf(response.player) == -1) status.syncOk.push(response.player);
+    if (settings.isServer && status.syncOk.length == settings.playerLimit) wsSend("playprepare");
+    writeWsConnectCount();
+}
+
+function handleWebsocketActionPlayPrepare(response) {
+    writeWsStatus('green');
+    writeScore();
+    if (settings.isServer) {
+        randomizeBall();
+        wsSend("playstart", { "ball": items.ball });
     }
 }
+
+function handleWebsocketActionPlayStart(response) {
+    items.ball = response.ball;
+    gamePlay();
+}
+
+function handleWebsocketActionBallSync(response) {
+    items.ball = response.ball;
+}
+
+function handleWebsocketActionNewGoal(response) {
+    status.goalHit = true;
+    clearInterval(status.animationInterval);
+    clearInterval(status.ballSyncInterval);
+    status.animationInterval = null;
+    status.ballSyncInterval = null;
+
+    if (settings.isServer) {
+        status.score[response.goalfor]++;
+        wsSend("statusupdate", { "key": "score", "val": status.score });
+        if (status.score.left < 8 && status.score.rigth < 8) resetGame();
+        else wsSend("finish", { "winner": response.goalfor });
+    }
+}
+
+function handleWebsocketActionStatusUpdate(response) {
+    status[response.key] = response.val;
+    writeNumbers();
+}
+
+function handleWebsocketActionFinish(response) {
+    alert("Winner is: ", response.winner);
+    status.gameOver = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
 
 function barMovementLimits(barIdx) {
     return [
@@ -234,33 +256,6 @@ function barSetInterval(intv, leftright, updown) {
     }, 20);
 }
 
-function handleKeyUp(event) {
-    if (event.key == "w") barClearInterval("leftMoveUpInterval");
-    if (event.key == "x") barClearInterval("leftMoveDownInterval");
-    if (event.key == "o") barClearInterval("rightMoveUpInterval");
-    if (event.key == "m") barClearInterval("rightMoveDownInterval");
-}
-
-function handleKeyDown(event) {
-    if (event.key == "s") { status.kickBars[status.playerBars.left] = 1; setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200); }
-    if (event.key == "k") { status.kickBars[status.playerBars.right] = 1; setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200); }
-    if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
-    if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
-    if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
-    if (event.key == "m") barSetInterval("rightMoveDownInterval", "right", "down");
-}
-
-function handleKeyPress(event) {
-    if (event.key == "p") { // Pause game
-        status.hold = !status.hold;
-        wsSend("statusupdate", { "key": "hold", "val": status.hold });
-    }
-    if (event.key == "b") { // Add random velocity to ball
-        randomizeBall();
-        wsSend("playstart", { "ball": items.ball });
-    }
-}
-
 function moveBar(barIndex, dir) {
     const newTop = elems.bars[barIndex].getBoundingClientRect().top + status.playerMovement[dir];
     if (dir == "up" && newTop < items.bars.limits[barIndex][0]) return;
@@ -284,9 +279,7 @@ function gamePlay() {
 
             if (settings.isServer) {
                 goalCollission = getGoalCollission();
-                if (goalCollission) {
-                    wsSend("newgoal", { "goalfor": goalCollission });
-                }
+                if (goalCollission) wsSend("newgoal", { "goalfor": goalCollission });
             }
         }
 
