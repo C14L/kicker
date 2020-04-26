@@ -38,7 +38,7 @@ async def websocket_application(scope, receive, send):
             del _global_scope['connections'][send]
             del _global_scope['users'][user_id]
             print(_global_scope)
-
+            # Tell the others that this player just disconnected
             await ws_send(_global_scope['games'][game_id]['connections'], {
                 'action': 'playerlist',
                 'playerlist': _global_scope['games'][game_id]['users'],

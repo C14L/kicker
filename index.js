@@ -1,4 +1,9 @@
-// DOM elements
+
+// TODO: asign each player their pair of bars
+// TODO: sync bar movement between tables
+// TODO: ball physics: speed and drag
+// TODO: ball physics: collisions with players
+
 const elems = {
     bars: document.querySelectorAll("#table > .bar"),
     goals: document.querySelectorAll("#table > .goal"),
@@ -34,26 +39,12 @@ const settings = {
 const items = {
     table: resizeTableAndGetDOMRect(),
     goals: resizeGoalsAndGetDOMRect(),
-    ball: {
-        radius: elems.ball.offsetWidth / 2,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        ax: 0,
-        ay: 0,
-        vvec: 0,
-        avec: 0,
-    },
-    bars: {
-        players: [],
-        limits: [],
-    },
-    player: {
-        radius: elems.players[0].offsetWidth / 2,
-    },
+    ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
+    bars: { players: [], limits: [] },
+    player: { radius: elems.players[0].offsetWidth / 2 },
     //players: elems.players.forEach((player, i) => {{x: 0,y: 0,},}),
 };
+
 elems.bars.forEach((elem, idx) => {
     items.bars.players = settings.mapBarPlayer[idx];
     items.bars.limits = barMovementLimits(idx);
@@ -63,15 +54,17 @@ const status = {
     hold: true,
     gameOver: false,
     goalHit: false,
-    syncOkCount: 0,
+    playerlist: [],  // list of connected players
+    syncOk: [],  // list of sync'ed players
     kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
-    playerMovement: { "up": -2, "down": 2 },
+    playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
     playerBars: { "left": 0, "right": 1 }, // this player's own bars controlled with "left" and "right" hand
     score: { "left": 0, "right": 0 },
-    leftMoveUpInterval: false,
-    leftMoveDownInterval: false,
-    rightMoveUpInterval: false,
-    rightMoveDownInterval: false,
+
+    leftMoveUpInterval: null,
+    leftMoveDownInterval: null,
+    rightMoveUpInterval: null,
+    rightMoveDownInterval: null,
     animationInterval: null,
     ballSyncInterval: null,
 };
@@ -88,6 +81,12 @@ function wsSend(action, data) {
     data = data || {};
     data.action = action;
     ws.send(JSON.stringify(data));
+}
+
+function wsSyncBall() {
+    if (settings.isServer && !status.hold) {
+        wsSend("ballsync", { "ball": items.ball });
+    }
 }
 
 function handleWebsocketOpen(event) {
@@ -107,22 +106,7 @@ function handleWebsocketMessage(event) {
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
 
-    if (response.action == "playerlist") {
-        writePlayers(response.playerlist);
-
-        if (response.playerlist.length == 1) {
-            settings.isServer = true;
-        }
-        if (response.playerlist.length < settings.playerLimit) {
-            // console.log("Waiting for more players:", response.playerlist);
-        }
-        if (response.playerlist.length == settings.playerLimit && settings.isServer) {
-            resetGame();
-        }
-        if (response.playerlist.length > settings.playerLimit) {
-            alert("Error, too many players. How did that happen?! o.O");
-        }
-    }
+    if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
 
     if (response.action == "gamesync") {
         // console.log("Received 'gamesync' action with 'items' being: ", items);
@@ -136,15 +120,16 @@ function handleWebsocketMessage(event) {
         // console.log("Updated items due to 'gamesync' action to: ", items);
         resizeTableAndGetDOMRect(items.table);
         resizeGoalsAndGetDOMRect(items.goals);
-        wsSend("syncok");
+        wsSend("syncok", { "player": settings.userId });
     }
 
     if (response.action == "syncok") {
         // A sync was finished, count players ready
-        status.syncOkCount++;
+        if (status.syncOk.indexOf(response.player) == -1) status.syncOk.push(response.player);
+
         writeWsConnectCount();
-        if (settings.isServer && status.syncOkCount == settings.playerLimit) {
-            // If master and all 4 players are ready, start the game
+        if (settings.isServer && status.syncOk.length == settings.playerLimit) {
+            // TODO: check if every player is registered only once and that registered and sync'ed players match
             wsSend("playprepare");
         }
     }
@@ -199,9 +184,22 @@ function handleWebsocketMessage(event) {
     }
 }
 
-function wsSyncBall() {
-    if (settings.isServer) {
-        wsSend("ballsync", { "ball": items.ball });
+function handleWebsocketActionPlayerlist(response) {
+    status.hold = true;
+    status.playerlist = response.playerlist;
+    writePlayers();
+
+    if (response.playerlist.length == 1) {
+        settings.isServer = true;
+    }
+    if (response.playerlist.length < settings.playerLimit) {
+        // console.log("Waiting for more players:", response.playerlist);
+    }
+    if (response.playerlist.length == settings.playerLimit && settings.isServer) {
+        resetGame();
+    }
+    if (response.playerlist.length > settings.playerLimit) {
+        alert("Error, too many players. How did that happen?! o.O");
     }
 }
 
@@ -222,20 +220,34 @@ function playerMovementReset() {
     status.playerMovement.down = 2;
 }
 
+function barClearInterval(intv) {
+    clearInterval(status[intv]);
+    status[intv] = null;
+    playerMovementReset();
+}
+
+function barSetInterval(intv, leftright, updown) {
+    if (status[intv]) return;
+    status[intv] = setInterval(() => {
+        moveBar(status.playerBars[leftright], updown);
+        playerMovementIncr();
+    }, 20);
+}
+
 function handleKeyUp(event) {
-    if (event.key == "w") { clearInterval(status.leftMoveUpInterval); status.leftMoveUpInterval = false; playerMovementReset(); }
-    if (event.key == "x") { clearInterval(status.leftMoveDownInterval); status.leftMoveDownInterval = false; playerMovementReset(); }
-    if (event.key == "o") { clearInterval(status.rightMoveUpInterval); status.rightMoveUpInterval = false; playerMovementReset(); }
-    if (event.key == "m") { clearInterval(status.rightMoveDownInterval); status.rightMoveDownInterval = false; playerMovementReset(); }
+    if (event.key == "w") barClearInterval("leftMoveUpInterval");
+    if (event.key == "x") barClearInterval("leftMoveDownInterval");
+    if (event.key == "o") barClearInterval("rightMoveUpInterval");
+    if (event.key == "m") barClearInterval("rightMoveDownInterval");
 }
 
 function handleKeyDown(event) {
-    if (event.key == "w" && !status.leftMoveUpInterval) status.leftMoveUpInterval = setInterval(() => { moveBar(status.playerBars.left, "up"); playerMovementIncr(); });
     if (event.key == "s") { status.kickBars[status.playerBars.left] = 1; setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200); }
-    if (event.key == "x" && !status.leftMoveDownInterval) status.leftMoveDownInterval = setInterval(() => { moveBar(status.playerBars.left, "down"); playerMovementIncr(); });
-    if (event.key == "o" && !status.rightMoveUpInterval) status.rightMoveUpInterval = setInterval(() => { moveBar(status.playerBars.right, "up"); playerMovementIncr(); });
     if (event.key == "k") { status.kickBars[status.playerBars.right] = 1; setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200); }
-    if (event.key == "m" && !status.rightMoveDownInterval) status.rightMoveDownInterval = setInterval(() => { moveBar(status.playerBars.right, "down"); playerMovementIncr(); });
+    if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
+    if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
+    if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
+    if (event.key == "m") barSetInterval("rightMoveDownInterval", "right", "down");
 }
 
 function handleKeyPress(event) {
@@ -258,6 +270,9 @@ function moveBar(barIndex, dir) {
 
 function gamePlay() {
     let goalCollission = null;
+
+    if (status.ballSyncInterval) clearInterval(status.ballSyncInterval);
+    if (status.animationInterval) clearInterval(status.animationInterval);
 
     status.ballSyncInterval = setInterval(() => wsSyncBall(), 1000);
 
@@ -423,6 +438,10 @@ function drawBall() {
     elems.ball.style.top = items.ball.y - items.ball.radius + "px";
 }
 
+function drawBars() {
+    // TODO: Draw the bars and players
+}
+
 function resetGame() {
     // After a goal, reset some status and item properties
     status.goalHit = false;
@@ -456,8 +475,8 @@ function writeScore() {
     elems.numbers.score.right.innerHTML = status.score.right;
 }
 
-function writePlayers(playerlist) {
-    elems.numbers.players.innerHTML = playerlist.join(", ");
+function writePlayers() {
+    elems.numbers.players.innerHTML = status.playerlist.join(", ");
 }
 
 function writeNumbers() {
@@ -467,7 +486,7 @@ function writeNumbers() {
 }
 
 function writeWsConnectCount() {
-    elems.numbers.websocket.innerHTML = status.syncOkCount;
+    elems.numbers.websocket.innerHTML = status.syncOk.length;
 }
 
 function writeWsStatus(s) {
