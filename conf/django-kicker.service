@@ -1,0 +1,26 @@
+[Unit]
+Description=django kicker daemon
+Requires=django-kicker.socket
+After=network.target
+
+[Service]
+PIDFile=/run/django-kicker/pid
+User=chris
+Group=www-data
+RuntimeDirectory=kicker
+WorkingDirectory=/var/www/kicker/kicker
+ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
+          --access-logfile /var/log/nginx/access.kicker.log \
+          --error-logfile /var/log/nginx/error.kicker.log \
+          --pid /run/django-kicker/pid   \
+          --env DJANGO_SETTINGS_MODULE=kicker.settings \
+          --bind unix:/run/django-kicker/socket \
+          kicker.asgi
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=on-failure
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

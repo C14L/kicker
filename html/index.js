@@ -6,9 +6,9 @@
 // TODO: ball physics: collisions with players
 
 const elems = {
-    bars: document.querySelectorAll("#table > .bar"),
-    goals: document.querySelectorAll("#table > .goal"),
-    players: document.querySelectorAll("#table > .bar > .player"),
+    bars: [...document.querySelectorAll("#table > .bar")],
+    goals: [...document.querySelectorAll("#table > .goal")],
+    players: [...document.querySelectorAll("#table > .bar > .player")],
     table: document.querySelector("#table"),
     ball: document.querySelector("#table > .ball"),
     numbers: {
@@ -41,15 +41,15 @@ const items = {
     table: resizeTableAndGetDOMRect(),
     goals: resizeGoalsAndGetDOMRect(),
     ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
-    bars: { players: [], limits: [] },
+    barsTop: [],
+    barsTopLimits: [],
+    barsBottomLimits: [],
     player: { radius: elems.players[0].offsetWidth / 2 },
-    //players: elems.players.forEach((player, i) => {{x: 0,y: 0,},}),
+    players: elems.players.map((elem) => [saneDOMRect(elem).x, saneDOMRect(elem).y]),
 };
-
-elems.bars.forEach((elem, idx) => {
-    items.bars.players = settings.mapBarPlayer[idx];
-    items.bars.limits = barMovementLimits(idx);
-});
+items.bars.top = resizeBarsTopAndGetDOMRect();
+items.bars.topLimits = elems.bars.map((elem, idx) => items.table.top - saneDOMRect(elems.players[settings.mapBarPlayer[idx][0]]).top);
+items.bars.bottomLimits = elems.bars.map((elem, idx) => items.table.bottom - saneDOMRect(elems.players[settings.mapBarPlayer[idx][settings.mapBarPlayer[idx].length - 1]]).bottom);
 
 const status = {
     hold: true,
@@ -99,15 +99,22 @@ function handleKeyPress(event) {
     }
 }
 
+function initKeyboardEvents() {
+    window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keypress", handleKeyPress);
+
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keypress", handleKeyPress);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 
 ws = new WebSocket("ws://localhost:8000/");
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
 ws.addEventListener('message', handleWebsocketMessage);
-window.addEventListener("keyup", handleKeyUp);
-window.addEventListener("keydown", handleKeyDown);
-window.addEventListener("keypress", handleKeyPress);
 
 function wsSend(action, data) {
     data = data || {};
@@ -159,17 +166,19 @@ function handleWebsocketActionPlayerlist(response) {
 }
 
 function handleWebsocketActionGameSync(response) {
-    // console.log("Received 'gamesync' action with 'items' being: ", items);
+    console.log("Received 'gamesync' action with 'items' being: ", items);
     items.table = response.table;
     items.goals = response.goals;
     items.ball = response.ball;
-    items.player = response.player;
     items.bars = response.bars;
-    //items.players = response.players;
-    // console.log("Updated items due to 'gamesync' action to: ", items);
+    items.player = response.player;
+    items.players = response.players;
+    console.log("Updated items due to 'gamesync' action to: ", items);
     resizeTableAndGetDOMRect(items.table);
     resizeGoalsAndGetDOMRect(items.goals);
+    resizeBarsTopAndGetDOMRect(items.bars);
     wsSend("syncok", { "player": settings.userId });
+    initKeyboardEvents();
 }
 
 function handleWebsocketActionSyncOk(response) {
@@ -225,13 +234,6 @@ function handleWebsocketActionFinish(response) {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-function barMovementLimits(barIdx) {
-    return [
-        items.table.top - elems.players[settings.mapBarPlayer[barIdx][0]].getBoundingClientRect().top,
-        items.table.bottom - elems.players[settings.mapBarPlayer[barIdx][settings.mapBarPlayer[barIdx].length - 1]].getBoundingClientRect().bottom,
-    ];
-}
-
 function playerMovementIncr() {
     status.playerMovement.up *= 1.01;
     status.playerMovement.down *= 1.01;
@@ -256,13 +258,6 @@ function barSetInterval(intv, leftright, updown) {
     }, 20);
 }
 
-function moveBar(barIndex, dir) {
-    const newTop = elems.bars[barIndex].getBoundingClientRect().top + status.playerMovement[dir];
-    if (dir == "up" && newTop < items.bars.limits[barIndex][0]) return;
-    if (dir == "down" && newTop > items.bars.limits[barIndex][1]) return;
-    window.requestAnimationFrame(() => elems.bars[barIndex].style.top = newTop + "px");
-}
-
 function gamePlay() {
     let goalCollission = null;
 
@@ -285,6 +280,7 @@ function gamePlay() {
 
         window.requestAnimationFrame(() => {
             drawBall();
+            drawBars();
             writeNumbers();
             writeNumbersInBall();
             writeNumbersInPlayers();
@@ -394,6 +390,14 @@ function resizeGoalsAndGetDOMRect(goals) {
     ];
 }
 
+function resizeBarsTopAndGetDOMRect(bars) {
+    elems.bars.forEach((elB, i) => {
+        let bar = bars && bars[i] || elems.bars[i].getBoundingClientRect();
+        elems.bars.forEach(elem => saneDOMRect(elem).top)
+                // TODO: ...
+    });
+}
+
 function saneDOMRect(elem) {
     const domRect = elem.getBoundingClientRect();
     return {
@@ -431,8 +435,21 @@ function drawBall() {
     elems.ball.style.top = items.ball.y - items.ball.radius + "px";
 }
 
+function moveBar(barIdx, dir) {
+    const newTop = saneDOMRect(elems.bars[barIdx]).top + status.playerMovement[dir];
+    if (dir == "up" && newTop < items.bars.limits[barIdx][0]) return;
+    if (dir == "down" && newTop > items.bars.limits[barIdx][1]) return;
+    items.bars.top[barIdx] = newTop;
+}
+
 function drawBars() {
-    // TODO: Draw the bars and players
+    // elems.players.forEach((elem, idx) => {
+    //     elems.players[idx].style.left = items.players[idx].x - items.player.radius + "px";
+    //     elems.players[idx].style.top = items.players[idx].y - items.player.radius + "px";
+    // });
+    window.requestAnimationFrame(() => {
+        elems.bars.forEach((elem, idx) => elems.bars[idx].style.top = items.bars.top[idx] + "px");
+    });
 }
 
 function resetGame() {
@@ -450,9 +467,9 @@ function resetGame() {
         "table": items.table,
         "goals": items.goals,
         "ball": items.ball,
-        "player": items.player,
         "bars": items.bars,
-        "players": {},  // TODO
+        "player": items.player,
+        "players": items.players,
     });
 }
 
