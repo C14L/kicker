@@ -1,19 +1,19 @@
 [Unit]
-Description=django kicker daemon
-Requires=django-kicker.socket
+Description=django kicker service
+Requires=kicker.socket
 After=network.target
 
 [Service]
-PIDFile=/run/django-kicker/pid
+PIDFile=/run/kicker.pid
 User=chris
 Group=www-data
-RuntimeDirectory=kicker
-WorkingDirectory=/var/www/kicker/kicker
+RuntimeDirectory=/var/www/kicker
+WorkingDirectory=/var/www/kicker
 ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
           --access-log \
           --log-level debug \
           --workers 4 \
-          --uds /run/django-kicker.socket \
+          --uds /run/kicker.socket \
           kicker.asgi:application
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s TERM $MAINPID

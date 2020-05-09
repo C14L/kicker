@@ -1,9 +1,8 @@
 [Unit]
-Description=kicker socket
+Description=django kicker socket
 
 [Socket]
 ListenStream=/run/kicker.socket
 
 [Install]
 WantedBy=sockets.target
-
