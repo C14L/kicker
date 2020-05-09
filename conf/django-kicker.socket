@@ -2,7 +2,7 @@
 Description=kicker socket
 
 [Socket]
-ListenStream=/run/kicker/socket
+ListenStream=/run/kicker.socket
 
 [Install]
 WantedBy=sockets.target

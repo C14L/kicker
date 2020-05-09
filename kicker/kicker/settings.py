@@ -25,7 +25,7 @@ SECRET_KEY = '@w&*)0d)zev8%olu!xe$k4fu6!mzf8x43ybnh!i-z^9vy4+yan'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', '3dir.com', '5.9.58.2']
 
 
 # Application definition
@@ -69,6 +69,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'kicker.wsgi.application'
+ASGI_APPLICATION = 'kicker.asgi.application'
 
 
 # Database

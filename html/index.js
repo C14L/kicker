@@ -111,7 +111,7 @@ function initKeyboardEvents() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-ws = new WebSocket("ws://localhost:8000/");
+ws = new WebSocket("ws://3dir.com/kicker/ws");  // localhost:8000
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
 ws.addEventListener('message', handleWebsocketMessage);
