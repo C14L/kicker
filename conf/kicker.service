@@ -13,6 +13,7 @@ ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
           --access-log \
           --log-level debug \
           --workers 4 \
+          --lifespan off \
           --uds /run/kicker.socket \
           kicker.asgi:application
 ExecReload=/bin/kill -s HUP $MAINPID

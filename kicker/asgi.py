@@ -8,14 +8,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'kicker.settings')
 
 django_application = get_asgi_application()
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 async def application(scope, receive, send):
     if scope['type'] == 'http':
+        logger.info("Django ASGI app received a HTTP request.")
         await django_application(scope, receive, send)
     elif scope['type'] == 'websocket':
-        print("Received websocket type!!")
-        log.info("Received websocket type!!")
+        logger.info("Django ASGI app received a WebSocket request.")
         await websocket_application(scope, receive, send)
     else:
         raise NotImplementedError(f"Unknown scope type {scope['type']}")
