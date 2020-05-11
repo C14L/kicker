@@ -1,4 +1,4 @@
 #!/bin/sh
 
-(cd kicker && uvicorn kicker.asgi:application && cd -)
+test $ISDEV && (cd kicker && uvicorn kicker.asgi:application && cd -)
 
