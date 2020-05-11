@@ -1,0 +1,20 @@
+[Unit]
+Description=django kicker service
+Requires=kicker.socket
+After=network.target
+
+[Service]
+PIDFile=/run/kicker.pid
+User=chris
+Group=chris
+RuntimeDirectory=uvicorn
+WorkingDirectory=/opt/kicker
+ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn kicker.asgi:application --uds /run/kicker.socket --access-log --log-level info --workers 4 --lifespan off
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=on-failure
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
