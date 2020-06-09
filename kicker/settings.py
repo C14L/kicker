@@ -1,42 +1,17 @@
 import os
-import logging
 
-logger = logging.getLogger(__name__)
-logger.info("Starting up...")
-
-ISDEV = bool(os.environ.get("ISDEV"))
-DEBUG = ISDEV
-
-if ISDEV:
-    logger.info("Development environment")
-else:
-    logger.info("Production environment")
-
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+DEBUG = bool(os.environ.get("ISDEV"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-logger.info("Setting BASE_DIR: %s", BASE_DIR)
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "@w&*)0d)zev8%olu!xe$k4fu6!mzf8x43ybnh!i-z^9vy4+yan"
-
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "[::1]",
-    "3dir.com",
-    "www.3dir.com",
-    "5.9.58.2",
-]
-
-# Application definition
+SECRET_KEY = "thereisnosecretneededforthisapplicationthereforeit"
+ALLOWED_HOSTS = ["localhost", "c14l.com"]
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
+    # "django.contrib.admin",
+    # "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
+    # "django.contrib.sessions",
+    # "django.contrib.messages",
+    # "django.contrib.staticfiles",
     "main",
 ]
 
@@ -44,9 +19,9 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -93,3 +68,9 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 STATIC_URL = "/static/"
+
+KICKER_DIR = os.path.join(BASE_DIR, "html")
+KICKER_HOME_FILE = os.path.join(KICKER_DIR, "home.html")
+KICKER_HTML_FILE = os.path.join(KICKER_DIR, "index.html")
+KICKER_CSS_FILE = os.path.join(KICKER_DIR, "index.css")
+KICKER_JS_FILE = os.path.join(KICKER_DIR, "index.js")
