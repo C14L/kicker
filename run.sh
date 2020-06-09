@@ -1,4 +1,3 @@
 #!/bin/sh
 
-test $ISDEV && (cd kicker && uvicorn kicker.asgi:application && cd -)
-
+test $ISDEV && uvicorn kicker.asgi:application
