@@ -7,16 +7,12 @@ After=network.target
 PIDFile=/run/kicker.pid
 User=chris
 Group=chris
-RuntimeDirectory=uvicorn
+RuntimeDirectory=daphne
+#RuntimeDirectory=uvicorn
 WorkingDirectory=/opt/kicker
-ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
-    kicker.asgi:application \
-    --uds /run/kicker.socket \
-    --access-log \
-    --log-config "/var/log/kicker-service" \
-    --log-level debug \
-    --workers 4 \
-    --lifespan off
+ExecStart=/home/chris/.virtualenvs/kicker/bin/daphne \
+    -u /run/kicker.socket \
+    kicker.asgi:application
 # ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
 #     kicker.asgi:application \
 #     --host 0.0.0.0 --port 8020 \
