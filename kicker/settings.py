@@ -17,7 +17,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "kicker.urls"
 TEMPLATES = []
-WSGI_APPLICATION = "kicker.wsgi.application"
+# WSGI_APPLICATION = "kicker.wsgi.application"
 ASGI_APPLICATION = "kicker.asgi.application"
 DATABASES = {}
 AUTH_PASSWORD_VALIDATORS = []

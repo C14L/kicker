@@ -10,12 +10,16 @@ django_application = get_asgi_application()
 
 logger = logging.getLogger(__name__)
 
+logger.info("### Django ASGI loaded.")
+
 async def application(scope, receive, send):
+    logger.info("### Django ASGI application called.")
+
     if scope['type'] == 'http':
-        logger.info("Django ASGI app received a HTTP request.")
+        logger.info("### Django ASGI app received a HTTP request.")
         await django_application(scope, receive, send)
     elif scope['type'] == 'websocket':
-        logger.info("Django ASGI app received a WebSocket request.")
+        logger.info("### Django ASGI app received a WebSocket request.")
         await websocket_application(scope, receive, send)
     else:
         raise NotImplementedError(f"Unknown scope type {scope['type']}")
