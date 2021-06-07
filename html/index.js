@@ -27,10 +27,10 @@ const elems = {
 };
 
 const settings = {
-    gameId: location.pathname.substr(1).split('/')[0],
-    userId: location.pathname.substr(1).split('/')[1],
+    gameId: location.pathname.substr(1).split('/')[1],
+    userId: location.pathname.substr(1).split('/')[2],
     isServer: false,
-    playerLimit: 2,
+    playerLimit: 4,
     drag: 0.8,
     mapBarPlayer: [[0], [1, 2], [3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18], [19, 20], [21]], // mapping of "player" objects onto "bar" objects
     kickSpeed: [10, 10], // default "kick" acceleration
@@ -41,8 +41,7 @@ const items = {
     table: resizeTableAndGetDOMRect(),
     goals: resizeGoalsAndGetDOMRect(),
     ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
-    barsTop: [],
-    barsTopLimits: [],
+    bars: {},
     barsBottomLimits: [],
     player: { radius: elems.players[0].offsetWidth / 2 },
     players: elems.players.map((elem) => [saneDOMRect(elem).x, saneDOMRect(elem).y]),
@@ -111,7 +110,7 @@ function initKeyboardEvents() {
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-ws = new WebSocket("ws://3dir.com/kicker/ws");  // localhost:8000
+ws = new WebSocket(`ws://${window.location.host}/kicker/ws`);
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
 ws.addEventListener('message', handleWebsocketMessage);
@@ -393,7 +392,7 @@ function resizeGoalsAndGetDOMRect(goals) {
 function resizeBarsTopAndGetDOMRect(bars) {
     elems.bars.forEach((elB, i) => {
         let bar = bars && bars[i] || elems.bars[i].getBoundingClientRect();
-        elems.bars.forEach(elem => saneDOMRect(elem).top)
+        elems.bars.forEach(elem => saneDOMRect(elem).top = elem)
                 // TODO: ...
     });
 }
