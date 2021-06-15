@@ -1,4 +1,6 @@
 
+// TODO: use fixed pixel 1600x800 table.
+// TODO: use freely choseable "table name" instead of game id to address the game.
 // TODO: sync inicial player spacing on bars -- currently only table and goals are sync'ed with Server.
 // TODO: asign each player their pair of bars
 // TODO: sync bar movement between tables
