@@ -1,11 +1,10 @@
 
-// TODO: use fixed pixel 1600x800 table.
-// TODO: use freely choseable "table name" instead of game id to address the game.
-// TODO: sync inicial player spacing on bars -- currently only table and goals are sync'ed with Server.
 // TODO: asign each player their pair of bars
 // TODO: sync bar movement between tables
 // TODO: ball physics: speed and drag
 // TODO: ball physics: collisions with players
+
+let DEBUG = true;
 
 const elems = {
     bars: [...document.querySelectorAll("#table > .bar")],
@@ -29,6 +28,7 @@ const elems = {
 };
 
 const settings = {
+    table: { width: 1600, height: 800 },
     gameId: location.pathname.substr(1).split('/')[1],
     userId: location.pathname.substr(1).split('/')[2],
     isServer: false,
@@ -40,15 +40,16 @@ const settings = {
 };
 
 const items = {
-    table: resizeTableAndGetDOMRect(),
-    goals: resizeGoalsAndGetDOMRect(),
+    table: saneDOMRect(elems.table),
+    goals: [saneDOMRect(elems.goals[0]), saneDOMRect(elems.goals[1])],
     ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
     bars: {},
     barsBottomLimits: [],
     player: { radius: elems.players[0].offsetWidth / 2 },
     players: elems.players.map((elem) => [saneDOMRect(elem).x, saneDOMRect(elem).y]),
 };
-items.bars.top = resizeBarsTopAndGetDOMRect();
+
+elems.bars.forEach((elB, i) => { items.bars[i] = saneDOMRect(elB) });
 items.bars.topLimits = elems.bars.map((elem, idx) => items.table.top - saneDOMRect(elems.players[settings.mapBarPlayer[idx][0]]).top);
 items.bars.bottomLimits = elems.bars.map((elem, idx) => items.table.bottom - saneDOMRect(elems.players[settings.mapBarPlayer[idx][settings.mapBarPlayer[idx].length - 1]]).bottom);
 
@@ -145,6 +146,7 @@ function handleWebsocketMessage(event) {
     console.log("handleWebsocketMessage", event.data);
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
+    console.log("Parsed response.action:", response.action);
     if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
     else if (response.action == "gamesync") handleWebsocketActionGameSync(response);
     else if (response.action == "syncok") handleWebsocketActionSyncOk(response);
@@ -154,30 +156,44 @@ function handleWebsocketMessage(event) {
     else if (response.action == "newgoal") handleWebsocketActionNewGoal(response);
     else if (response.action == "statusupdate") handleWebsocketActionStatusUpdate(response);
     else if (response.action == "finish") handleWebsocketActionFinish(response);
+    writeWsStatus('yellow');
 }
 
 function handleWebsocketActionPlayerlist(response) {
     status.hold = true;
     status.playerlist = response.playerlist;
     writePlayers();
-    if (response.playerlist.length == 1) settings.isServer = true;
-    else if (response.playerlist.length < settings.playerLimit) console.log("Waiting for more players:", response.playerlist);
-    else if (response.playerlist.length == settings.playerLimit && settings.isServer) resetGame();
-    else if (response.playerlist.length > settings.playerLimit) alert("Error, too many players. How did that happen?! o.O");
+    console.log("Players:", response.playerlist);
+
+    if (response.playerlist.length == 1) {
+        settings.isServer = true;
+        console.log("You are the first player, setting as server:", settings.isServer);
+
+        if (DEBUG) {
+            resetGame(); // start game with one player for debug
+        }
+    }
+    else if (response.playerlist.length < settings.playerLimit) {
+        console.log("Waiting for more players:", response.playerlist);
+    }
+    else if (response.playerlist.length == settings.playerLimit && settings.isServer) {
+        console.log("Calling resetGame to start game");
+        resetGame();
+    }
+    else if (response.playerlist.length > settings.playerLimit) {
+        alert("Error, too many players. How did that happen?! o.O");
+    }
+    else {
+        console.log("Enough players, but I am not server, so wait for the server to start the game.");
+    }
 }
 
 function handleWebsocketActionGameSync(response) {
     console.log("Received 'gamesync' action with 'items' being: ", items);
-    items.table = response.table;
-    items.goals = response.goals;
     items.ball = response.ball;
-    items.bars = response.bars;
     items.player = response.player;
     items.players = response.players;
     console.log("Updated items due to 'gamesync' action to: ", items);
-    resizeTableAndGetDOMRect(items.table);
-    resizeGoalsAndGetDOMRect(items.goals);
-    resizeBarsTopAndGetDOMRect(items.bars);
     wsSend("syncok", { "player": settings.userId });
     initKeyboardEvents();
 }
@@ -260,6 +276,7 @@ function barSetInterval(intv, leftright, updown) {
 }
 
 function gamePlay() {
+    console.log("gamePlay() called");
     let goalCollission = null;
 
     if (status.ballSyncInterval) clearInterval(status.ballSyncInterval);
@@ -268,25 +285,34 @@ function gamePlay() {
     status.ballSyncInterval = setInterval(() => wsSyncBall(), 1000);
 
     status.animationInterval = setInterval(() => {
-        if (!status.hold) {
-            moveBall();
-            handlePlayerCollission();
-            handleWallCollission();
+        try {
+            if (!status.hold) {
+                moveBall();
+                handlePlayerCollission();
+                handleWallCollission();
 
-            if (settings.isServer) {
-                goalCollission = getGoalCollission();
-                if (goalCollission) wsSend("newgoal", { "goalfor": goalCollission });
+                if (settings.isServer) {
+                    goalCollission = getGoalCollission();
+                    if (goalCollission) wsSend("newgoal", { "goalfor": goalCollission });
+                }
             }
-        }
 
-        window.requestAnimationFrame(() => {
-            drawBall();
-            drawBars();
-            writeNumbers();
-            writeNumbersInBall();
-            writeNumbersInPlayers();
-        });
-    }, 20);
+            window.requestAnimationFrame(() => {
+                try {
+                    drawBall();
+                    drawBars();
+                    writeNumbers();
+                    writeNumbersInBall();
+                    writeNumbersInPlayers();
+                } catch (e) {
+                    console.log("An error occured:", e);
+                }
+            });
+        } catch (e) {
+            console.log("An outer error occured:", e);
+            clearInterval(status.animationInterval);
+        }
+    }, 100);
 }
 
 function getGoalCollission(ball) {
@@ -364,40 +390,40 @@ function handleWallCollission() {
     }
 }
 
-function resizeTableAndGetDOMRect(table) {
-    table = table || elems.table.getBoundingClientRect();
-    elems.table.style.top = table.top + "px";
-    elems.table.style.right = "auto";
-    elems.table.style.bottom = "auto";
-    elems.table.style.left = table.left + "px";
-    elems.table.style.width = table.width + "px";
-    elems.table.style.height = table.height + "px";
-    return saneDOMRect(elems.table);
-}
+// function resizeTableAndGetDOMRect(table) {
+//     table = table || elems.table.getBoundingClientRect();
+//     elems.table.style.top = table.top + "px";
+//     elems.table.style.right = "auto";
+//     elems.table.style.bottom = "auto";
+//     elems.table.style.left = table.left + "px";
+//     elems.table.style.width = table.width + "px";
+//     elems.table.style.height = table.height + "px";
+//     return saneDOMRect(elems.table);
+// }
 
-function resizeGoalsAndGetDOMRect(goals) {
-    elems.goals.forEach((elG, i) => {
-        let goal = goals && goals[i] || elems.goals[i].getBoundingClientRect();
-        elems.goals[i].style.top = goal.top + "px";
-        elems.goals[i].style.right = "auto";
-        elems.goals[i].style.bottom = "auto";
-        elems.goals[i].style.left = goal.left + "px";
-        elems.goals[i].style.width = goal.width + "px";
-        elems.goals[i].style.height = goal.height + "px";
-    });
-    return [
-        saneDOMRect(elems.goals[0]),
-        saneDOMRect(elems.goals[1]),
-    ];
-}
+// function resizeGoalsAndGetDOMRect(goals) {
+//     elems.goals.forEach((elG, i) => {
+//         let goal = goals && goals[i] || elems.goals[i].getBoundingClientRect();
+//         elems.goals[i].style.top = goal.top + "px";
+//         elems.goals[i].style.right = "auto";
+//         elems.goals[i].style.bottom = "auto";
+//         elems.goals[i].style.left = goal.left + "px";
+//         elems.goals[i].style.width = goal.width + "px";
+//         elems.goals[i].style.height = goal.height + "px";
+//     });
+//     return [
+//         saneDOMRect(elems.goals[0]),
+//         saneDOMRect(elems.goals[1]),
+//     ];
+// }
 
-function resizeBarsTopAndGetDOMRect(bars) {
-    elems.bars.forEach((elB, i) => {
-        let bar = bars && bars[i] || elems.bars[i].getBoundingClientRect();
-        elems.bars.forEach(elem => saneDOMRect(elem).top = elem)
-                // TODO: ...
-    });
-}
+// function resizeBarsTopAndGetDOMRect(bars) {
+//     elems.bars.forEach((elB, i) => {
+//         let bar = bars && bars[i] || elems.bars[i].getBoundingClientRect();
+//         // elems.bars.forEach(elem => { saneDOMRect(elem).top = elem });
+//         // TODO: ...
+//     });
+// }
 
 function saneDOMRect(elem) {
     const domRect = elem.getBoundingClientRect();
@@ -449,11 +475,12 @@ function drawBars() {
     //     elems.players[idx].style.top = items.players[idx].y - items.player.radius + "px";
     // });
     window.requestAnimationFrame(() => {
-        elems.bars.forEach((elem, idx) => elems.bars[idx].style.top = items.bars.top[idx] + "px");
+        elems.bars.forEach((_, idx) => elems.bars[idx].style.top = items.bars.top[idx] + "px");
     });
 }
 
 function resetGame() {
+    console.log("resetGame() called");
     // After a goal, reset some status and item properties
     status.goalHit = false;
     items.ball.x = items.table.x;
@@ -463,7 +490,7 @@ function resetGame() {
     items.ball.ax = 0;
     items.ball.ay = 0;
 
-    wsSend("gamesync", {
+    const msg = {
         "hold": status.hold,
         "table": items.table,
         "goals": items.goals,
@@ -471,7 +498,9 @@ function resetGame() {
         "bars": items.bars,
         "player": items.player,
         "players": items.players,
-    });
+    };
+    console.log("Now sending gamesync message:", msg);
+    wsSend("gamesync", msg);
 }
 
 function randomizeBall() {
@@ -487,7 +516,10 @@ function writeScore() {
 }
 
 function writePlayers() {
-    elems.numbers.players.innerHTML = status.playerlist.join(", ");
+    let li = [...status.playerlist];
+    const gameId = settings.gameId;
+    while (li.length < 4) li.push('___');
+    elems.numbers.players.innerHTML = `${gameId}: ( ${li[0]} + ${li[1]} ) vs ( ${li[2]} + ${li[3]} )`;
 }
 
 function writeNumbers() {
