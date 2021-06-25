@@ -4,8 +4,6 @@
 // TODO: ball physics: speed and drag
 // TODO: ball physics: collisions with players
 
-let DEBUG = true;
-
 const elems = {
     bars: [...document.querySelectorAll("#table > .bar")],
     goals: [...document.querySelectorAll("#table > .goal")],
@@ -43,15 +41,10 @@ const items = {
     table: saneDOMRect(elems.table),
     goals: [saneDOMRect(elems.goals[0]), saneDOMRect(elems.goals[1])],
     ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
-    bars: {},
     barsBottomLimits: [],
     player: { radius: elems.players[0].offsetWidth / 2 },
     players: elems.players.map((elem) => [saneDOMRect(elem).x, saneDOMRect(elem).y]),
 };
-
-elems.bars.forEach((elB, i) => { items.bars[i] = saneDOMRect(elB) });
-items.bars.topLimits = elems.bars.map((elem, idx) => items.table.top - saneDOMRect(elems.players[settings.mapBarPlayer[idx][0]]).top);
-items.bars.bottomLimits = elems.bars.map((elem, idx) => items.table.bottom - saneDOMRect(elems.players[settings.mapBarPlayer[idx][settings.mapBarPlayer[idx].length - 1]]).bottom);
 
 const status = {
     hold: true,
@@ -59,6 +52,7 @@ const status = {
     goalHit: false,
     playerlist: [],  // list of connected players
     syncOk: [],  // list of sync'ed players
+    offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from center
     kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
     playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
     playerBars: { "left": 0, "right": 1 }, // this player's own bars controlled with "left" and "right" hand
@@ -82,8 +76,14 @@ function handleKeyUp(event) {
 }
 
 function handleKeyDown(event) {
-    if (event.key == "s") { status.kickBars[status.playerBars.left] = 1; setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200); }
-    if (event.key == "k") { status.kickBars[status.playerBars.right] = 1; setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200); }
+    if (event.key == "s") {
+        status.kickBars[status.playerBars.left] = 1;
+        setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200);
+    }
+    if (event.key == "k") {
+        status.kickBars[status.playerBars.right] = 1;
+        setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200);
+    }
     if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
     if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
     if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
@@ -101,7 +101,7 @@ function handleKeyPress(event) {
     }
 }
 
-function initKeyboardEvents() {
+(function initKeyboardEvents() {
     window.removeEventListener("keyup", handleKeyUp);
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keypress", handleKeyPress);
@@ -109,7 +109,7 @@ function initKeyboardEvents() {
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keypress", handleKeyPress);
-}
+})();
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -168,10 +168,6 @@ function handleWebsocketActionPlayerlist(response) {
     if (response.playerlist.length == 1) {
         settings.isServer = true;
         console.log("You are the first player, setting as server:", settings.isServer);
-
-        if (DEBUG) {
-            resetGame(); // start game with one player for debug
-        }
     }
     else if (response.playerlist.length < settings.playerLimit) {
         console.log("Waiting for more players:", response.playerlist);
@@ -195,7 +191,6 @@ function handleWebsocketActionGameSync(response) {
     items.players = response.players;
     console.log("Updated items due to 'gamesync' action to: ", items);
     wsSend("syncok", { "player": settings.userId });
-    initKeyboardEvents();
 }
 
 function handleWebsocketActionSyncOk(response) {
@@ -300,7 +295,7 @@ function gamePlay() {
             window.requestAnimationFrame(() => {
                 try {
                     drawBall();
-                    drawBars();
+                    // drawBars();
                     writeNumbers();
                     writeNumbersInBall();
                     writeNumbersInPlayers();
@@ -390,41 +385,6 @@ function handleWallCollission() {
     }
 }
 
-// function resizeTableAndGetDOMRect(table) {
-//     table = table || elems.table.getBoundingClientRect();
-//     elems.table.style.top = table.top + "px";
-//     elems.table.style.right = "auto";
-//     elems.table.style.bottom = "auto";
-//     elems.table.style.left = table.left + "px";
-//     elems.table.style.width = table.width + "px";
-//     elems.table.style.height = table.height + "px";
-//     return saneDOMRect(elems.table);
-// }
-
-// function resizeGoalsAndGetDOMRect(goals) {
-//     elems.goals.forEach((elG, i) => {
-//         let goal = goals && goals[i] || elems.goals[i].getBoundingClientRect();
-//         elems.goals[i].style.top = goal.top + "px";
-//         elems.goals[i].style.right = "auto";
-//         elems.goals[i].style.bottom = "auto";
-//         elems.goals[i].style.left = goal.left + "px";
-//         elems.goals[i].style.width = goal.width + "px";
-//         elems.goals[i].style.height = goal.height + "px";
-//     });
-//     return [
-//         saneDOMRect(elems.goals[0]),
-//         saneDOMRect(elems.goals[1]),
-//     ];
-// }
-
-// function resizeBarsTopAndGetDOMRect(bars) {
-//     elems.bars.forEach((elB, i) => {
-//         let bar = bars && bars[i] || elems.bars[i].getBoundingClientRect();
-//         // elems.bars.forEach(elem => { saneDOMRect(elem).top = elem });
-//         // TODO: ...
-//     });
-// }
-
 function saneDOMRect(elem) {
     const domRect = elem.getBoundingClientRect();
     return {
@@ -463,19 +423,19 @@ function drawBall() {
 }
 
 function moveBar(barIdx, dir) {
-    const newTop = saneDOMRect(elems.bars[barIdx]).top + status.playerMovement[dir];
-    if (dir == "up" && newTop < items.bars.limits[barIdx][0]) return;
-    if (dir == "down" && newTop > items.bars.limits[barIdx][1]) return;
-    items.bars.top[barIdx] = newTop;
+    const newTop = status.offsetBars[barIdx] + status.playerMovement[dir];
+    if (dir == "up" && newTop < -500) return;
+    if (dir == "down" && newTop > 500) return;
+    status.offsetBars[barIdx] = newTop;
 }
 
 function drawBars() {
-    // elems.players.forEach((elem, idx) => {
-    //     elems.players[idx].style.left = items.players[idx].x - items.player.radius + "px";
-    //     elems.players[idx].style.top = items.players[idx].y - items.player.radius + "px";
-    // });
+    elems.players.forEach((elem, idx) => {
+        elems.players[idx].style.left = items.players[idx].x - items.player.radius + "px";
+        elems.players[idx].style.top = items.players[idx].y - items.player.radius + "px";
+    });
     window.requestAnimationFrame(() => {
-        elems.bars.forEach((_, idx) => elems.bars[idx].style.top = items.bars.top[idx] + "px");
+        elems.bars.forEach((_, idx) => elems.bars[idx].style.top = status.offsetBars[idx] + "px");
     });
 }
 
@@ -492,8 +452,8 @@ function resetGame() {
 
     const msg = {
         "hold": status.hold,
-        "table": items.table,
-        "goals": items.goals,
+        // "table": items.table, // now has a default size+position
+        // "goals": items.goals, // now has a default size+position
         "ball": items.ball,
         "bars": items.bars,
         "player": items.player,
