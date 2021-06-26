@@ -87,6 +87,10 @@ function tableDOMRect(elem) {
     };
 }
 
+function last(arr) {
+    return arr[arr.length - 1];
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
 // Keyboard events
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -435,12 +439,17 @@ function moveBall() {
 }
 
 function moveBar(barIdx, dir) {
-    console.log("moveBar() called:", barIdx, dir);
-    const newTop = items.offsetBars[barIdx] + status.playerMovement[dir];
-    if (dir == "up" && newTop < -500) return;
-    if (dir == "down" && newTop > 500) return;
-    items.offsetBars[barIdx] = newTop;
-    console.log("new items.offsetBars[barIdx]:", items.offsetBars[barIdx]);
+    // console.log("moveBar() called:", barIdx, dir);
+    let myPlayers = settings.mapBarPlayer[barIdx];
+    let newOffset = items.offsetBars[barIdx] + status.playerMovement[dir];
+    let playerIdx = (dir == "up") ? myPlayers[0] : last(myPlayers);
+    let posY = Math.round(settings.playersInit[playerIdx][1] + newOffset);
+
+    if (dir == "up" && posY - settings.playerRadius < settings.table.top) return;
+    if (dir == "down" && posY + settings.playerRadius > settings.table.bottom) return;
+
+    items.offsetBars[barIdx] = newOffset;
+    console.log("new items.offsetBars[barIdx]:", barIdx, items.offsetBars[barIdx]);
 }
 
 function resetGame() {
@@ -507,12 +516,12 @@ function drawBall() {
 function drawPlayers() {
     items.offsetBars.forEach((offset, barIdx) => {
         settings.mapBarPlayer[barIdx].forEach((playerIdx) => {
-            elems.players[playerIdx].style.top = (offset + elems.table.top - settings.playerRadius) + "px";
+            let posX = Math.round(settings.playersInit[playerIdx][0]);
+            let posY = Math.round(settings.playersInit[playerIdx][1] + offset - settings.playerRadius);
+            elems.players[playerIdx].style.top = posY + "px";
 
             if (settings.debugShowNumbers) {
-                let posX = settings.playersInit[playerIdx][0];
-                let posY = settings.playersInit[playerIdx][1] + items.offsetBars[barIdx];
-                elems.players[playerIdx].innerHTML = `${Math.round(posX)} ${Math.round(posY)}`;
+                elems.players[playerIdx].innerHTML = `${posX} ${posY}`;
             }
         });
     });
