@@ -93,6 +93,11 @@ body {
     color: white;
     text-align: center;
     text-shadow: 0 0 2px black;
+    font-size: small;
+    color: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #table > .goal {
@@ -169,6 +174,9 @@ body {
     text-shadow: 0 0 2px black;
     margin: 0;
     padding: 0;
+    font-size: small;
+    display: flex;
+    align-items: center;
 }
 
 #table > .bar > .player.impact {
@@ -177,10 +185,12 @@ body {
 
 #table > .bar.black > .player {
     background-color: black;
+    color: white;
 }
 
 #table > .bar.white > .player {
     background-color: yellow;
+    color: black;
 }
 
 #table > .bar.keeper > .p1 {

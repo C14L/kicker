@@ -4,6 +4,7 @@
 // TODO: ball physics: speed and drag
 // TODO: ball physics: collisions with players
 
+// Local HTML elements used to render the game
 const elems = {
     bars: [...document.querySelectorAll("#table > .bar")],
     goals: [...document.querySelectorAll("#table > .goal")],
@@ -25,37 +26,41 @@ const elems = {
     },
 };
 
+// Locally used constant values
 const settings = {
-    table: { width: 1600, height: 800 },
-    gameId: location.pathname.substr(1).split('/')[1],
-    userId: location.pathname.substr(1).split('/')[2],
-    isServer: false,
-    playerLimit: 4,
-    drag: 0.8,
-    mapBarPlayer: [[0], [1, 2], [3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18], [19, 20], [21]], // mapping of "player" objects onto "bar" objects
-    kickSpeed: [10, 10], // default "kick" acceleration
+    ballRadius: elems.ball.offsetWidth / 2,
     debugShowNumbers: true,
+    drag: 0.8,
+    gameId: location.pathname.substr(1).split('/')[1],
+    goals: [tableDOMRect(elems.goals[0]), tableDOMRect(elems.goals[1])],
+    isServer: false,
+    kickSpeed: [10, 10], // default "kick" acceleration
+    mapBarPlayer: [[0], [1, 2], [3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18], [19, 20], [21]], // mapping of "player" objects onto "bar" objects
+    playerLimit: 4, // number of human players per game
+    playerRadius: elems.players[0].offsetWidth / 2 ,
+    playersInit: elems.players.map((elem) => [tableDOMRect(elem).x, tableDOMRect(elem).y]),
+    table: { top: 0, left: 0, right: 1600, bottom: 800, width: 1600, height: 800, x: 800, y: 400 },
+    userId: location.pathname.substr(1).split('/')[2],
 };
 
+// Changing values shared with all other players by the Server
 const items = {
-    table: saneDOMRect(elems.table),
-    goals: [saneDOMRect(elems.goals[0]), saneDOMRect(elems.goals[1])],
-    ball: { radius: elems.ball.offsetWidth / 2, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
-    barsBottomLimits: [],
-    player: { radius: elems.players[0].offsetWidth / 2 },
-    players: elems.players.map((elem) => [saneDOMRect(elem).x, saneDOMRect(elem).y]),
+    ball: { x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
+    offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from middle
 };
 
+// Locally used changing values
 const status = {
+    isGamePlay: false,
     hold: true,
     gameOver: false,
+    goalCollission: null,
     goalHit: false,
     playerlist: [],  // list of connected players
     syncOk: [],  // list of sync'ed players
-    offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from center
     kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
     playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
-    playerBars: { "left": 0, "right": 1 }, // this player's own bars controlled with "left" and "right" hand
+    playerBars: { "left": 2, "right": 4 }, // this player's own bars controlled with "left" and "right" hand
     score: { "left": 0, "right": 0 },
 
     leftMoveUpInterval: null,
@@ -66,7 +71,30 @@ const status = {
     ballSyncInterval: null,
 };
 
+// Return DOM rectangle relative to the table, not the DOM body.
+function tableDOMRect(elem) {
+    const domRect = elem.getBoundingClientRect();
+    const tblRect = elems.table.getBoundingClientRect();
+    return {
+        top: domRect.top - tblRect.top,
+        right: domRect.right - tblRect.left,
+        bottom: domRect.bottom - tblRect.top,
+        left: domRect.left - tblRect.left,
+        width: domRect.width,
+        height: domRect.height,
+        x: (domRect.width / 2) + (domRect.left - tblRect.left), // Center point of the object
+        y: (domRect.height / 2) + (domRect.top - tblRect.top), // Center point of the object
+    };
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////
+// Keyboard events
+////////////////////////////////////////////////////////////////////////////////////////
+
+console.log("Adding keyboard events...");
+window.addEventListener('keyup', handleKeyUp);
+window.addEventListener('keydown', handleKeyDown);
+window.addEventListener('keypress', handleKeyPress);
 
 function handleKeyUp(event) {
     if (event.key == "w") barClearInterval("leftMoveUpInterval");
@@ -76,11 +104,11 @@ function handleKeyUp(event) {
 }
 
 function handleKeyDown(event) {
-    if (event.key == "s") {
+    if (event.key == "s") { // kick the ball
         status.kickBars[status.playerBars.left] = 1;
         setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200);
     }
-    if (event.key == "k") {
+    if (event.key == "k") { // kick the ball
         status.kickBars[status.playerBars.right] = 1;
         setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200);
     }
@@ -93,26 +121,25 @@ function handleKeyDown(event) {
 function handleKeyPress(event) {
     if (event.key == "p") { // Pause game
         status.hold = !status.hold;
+        console.log("Key p pressed: pause is", status.hold);
         wsSend("statusupdate", { "key": "hold", "val": status.hold });
     }
     if (event.key == "b") { // Add random velocity to ball
+        console.log("Key b pressed: randomly kick the ball...");
         randomizeBall();
         wsSend("playstart", { "ball": items.ball });
     }
+    if (event.key == "g") { // Add random velocity to ball
+        console.log("Key g pressed: start game...");
+        gamePlay();
+    }
 }
 
-(function initKeyboardEvents() {
-    window.removeEventListener("keyup", handleKeyUp);
-    window.removeEventListener("keydown", handleKeyDown);
-    window.removeEventListener("keypress", handleKeyPress);
-
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keypress", handleKeyPress);
-})();
-
+////////////////////////////////////////////////////////////////////////////////////////
+// Websocket events
 ////////////////////////////////////////////////////////////////////////////////////////
 
+console.log("Opening Websocket and adding Websocket event listeners...");
 ws = new WebSocket(`ws://${window.location.host}/kicker/ws`);
 ws.addEventListener('open', handleWebsocketOpen);
 ws.addEventListener('close', handleWebsocketClose);
@@ -126,6 +153,7 @@ function wsSend(action, data) {
 
 function wsSyncBall() {
     if (settings.isServer && !status.hold) {
+        console.log("wsSyncBall() called")
         wsSend("ballsync", { "ball": items.ball });
     }
 }
@@ -245,6 +273,49 @@ function handleWebsocketActionFinish(response) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
+// Ball and player
+////////////////////////////////////////////////////////////////////////////////////////
+
+function resetGamePlay() {
+    if (status.ballSyncInterval) clearInterval(status.ballSyncInterval);
+    if (status.animationInterval) clearInterval(status.animationInterval);
+}
+
+function gamePlay() {
+    console.log("gamePlay() called");
+    if (status.isGamePlay) {
+        console.log("gamePlay() already active, ignore.");
+        return;
+    }
+    resetGamePlay();
+    status.isGamePlay = true;
+    status.goalCollission = null;
+
+    // Sync ball position via Websocket to others, if player is Server.
+    // Each player calculates their ball's route independently. Usually,
+    // the balls should have trajectories very close to each other.
+    status.ballSyncInterval = setInterval(() => wsSyncBall(), 1000);
+
+    status.animationInterval = setInterval(() => {
+        try {
+            if (!status.hold) {
+                moveBall();
+                handlePlayerCollission();
+                handleWallCollission();
+
+                if (settings.isServer) {
+                    status.goalCollission = getGoalCollission();
+                    if (status.goalCollission) wsSend("newgoal", { "goalfor": status.goalCollission });
+                }
+            }
+
+            drawGame();
+        } catch (e) {
+            console.log("An outer error occured:", e);
+            resetGamePlay();
+        }
+    }, 100);
+}
 
 function playerMovementIncr() {
     status.playerMovement.up *= 1.01;
@@ -270,50 +341,10 @@ function barSetInterval(intv, leftright, updown) {
     }, 20);
 }
 
-function gamePlay() {
-    console.log("gamePlay() called");
-    let goalCollission = null;
-
-    if (status.ballSyncInterval) clearInterval(status.ballSyncInterval);
-    if (status.animationInterval) clearInterval(status.animationInterval);
-
-    status.ballSyncInterval = setInterval(() => wsSyncBall(), 1000);
-
-    status.animationInterval = setInterval(() => {
-        try {
-            if (!status.hold) {
-                moveBall();
-                handlePlayerCollission();
-                handleWallCollission();
-
-                if (settings.isServer) {
-                    goalCollission = getGoalCollission();
-                    if (goalCollission) wsSend("newgoal", { "goalfor": goalCollission });
-                }
-            }
-
-            window.requestAnimationFrame(() => {
-                try {
-                    drawBall();
-                    // drawBars();
-                    writeNumbers();
-                    writeNumbersInBall();
-                    writeNumbersInPlayers();
-                } catch (e) {
-                    console.log("An error occured:", e);
-                }
-            });
-        } catch (e) {
-            console.log("An outer error occured:", e);
-            clearInterval(status.animationInterval);
-        }
-    }, 100);
-}
-
 function getGoalCollission(ball) {
     if (items.ball.y > items.goals[0].top && items.ball.y < items.goals[0].bottom) {
-        if (items.ball.x >= (items.table.right - items.ball.radius)) return "right";
-        if (items.ball.x <= (items.table.left + items.ball.radius)) return "left";
+        if (items.ball.x >= (settings.table.right - settings.ballRadius)) return "right";
+        if (items.ball.x <= (settings.table.left + settings.ballRadius)) return "left";
     }
     return null;
 }
@@ -321,19 +352,19 @@ function getGoalCollission(ball) {
 function handlePlayerCollission() {
     // console.log("handlePlayerCollission() called.");
     const ft = (items.ball.x <= items.table.x) ? [0, 3] : [4, 7];
-    const c = Math.pow(items.ball.radius + items.player.radius, 2);
+    const c = Math.pow(settings.ballRadius + items.player.radius, 2);
 
     for (let i = ft[0]; i <= ft[1]; i++) {
-        const barx = saneDOMRect(elems.bars[i]).x;
+        const barx = tableDOMRect(elems.bars[i]).x;
 
-        if (items.ball.x + items.ball.radius > barx - items.player.radius && items.ball.x - items.ball.radius < barx + items.player.radius) {
+        if (items.ball.x + settings.ballRadius > barx - items.player.radius && items.ball.x - settings.ballRadius < barx + items.player.radius) {
             elems.bars[i].classList.add("impact");
             /* jshint -W083 */
             setTimeout(() => { elems.bars[i].classList.remove("impact"); }, 100);
 
             settings.mapBarPlayer[i].forEach(pi => {
                 /* jshint +W083 */
-                const player = saneDOMRect(elems.players[pi]);
+                const player = tableDOMRect(elems.players[pi]);
                 const ab = Math.pow(items.ball.x - player.x, 2) + Math.pow(items.ball.y - player.y, 2);
                 // console.log("ab", ab);
 
@@ -371,32 +402,18 @@ function handleBallDeflection(player) {
 }
 
 function handleWallCollission() {
-    if (items.ball.vx < 0 && items.ball.x < (items.table.left + items.ball.radius)) {
+    if (items.ball.vx < 0 && items.ball.x < (items.table.left + settings.ballRadius)) {
         items.ball.vx *= -1;
     }
-    if (items.ball.vy < 0 && items.ball.y < (items.table.top + items.ball.radius)) {
+    if (items.ball.vy < 0 && items.ball.y < (items.table.top + settings.ballRadius)) {
         items.ball.vy *= -1;
     }
-    if (items.ball.vx > 0 && items.ball.x > (items.table.right - items.ball.radius)) {
+    if (items.ball.vx > 0 && items.ball.x > (items.table.right - settings.ballRadius)) {
         items.ball.vx *= -1;
     }
-    if (items.ball.vy > 0 && items.ball.y > (items.table.bottom - items.ball.radius)) {
+    if (items.ball.vy > 0 && items.ball.y > (items.table.bottom - settings.ballRadius)) {
         items.ball.vy *= -1;
     }
-}
-
-function saneDOMRect(elem) {
-    const domRect = elem.getBoundingClientRect();
-    return {
-        top: domRect.top,
-        right: domRect.right,
-        bottom: domRect.bottom,
-        left: domRect.left,
-        width: domRect.width,
-        height: domRect.height,
-        x: domRect.width / 2 + domRect.left, // Center point of the object
-        y: domRect.height / 2 + domRect.top, // Center point of the object
-    };
 }
 
 function ballVVec() {
@@ -417,26 +434,13 @@ function moveBall() {
     items.ball.y += items.ball.vy;
 }
 
-function drawBall() {
-    elems.ball.style.left = items.ball.x - items.ball.radius + "px";
-    elems.ball.style.top = items.ball.y - items.ball.radius + "px";
-}
-
 function moveBar(barIdx, dir) {
-    const newTop = status.offsetBars[barIdx] + status.playerMovement[dir];
+    console.log("moveBar() called:", barIdx, dir);
+    const newTop = items.offsetBars[barIdx] + status.playerMovement[dir];
     if (dir == "up" && newTop < -500) return;
     if (dir == "down" && newTop > 500) return;
-    status.offsetBars[barIdx] = newTop;
-}
-
-function drawBars() {
-    elems.players.forEach((elem, idx) => {
-        elems.players[idx].style.left = items.players[idx].x - items.player.radius + "px";
-        elems.players[idx].style.top = items.players[idx].y - items.player.radius + "px";
-    });
-    window.requestAnimationFrame(() => {
-        elems.bars.forEach((_, idx) => elems.bars[idx].style.top = status.offsetBars[idx] + "px");
-    });
+    items.offsetBars[barIdx] = newTop;
+    console.log("new items.offsetBars[barIdx]:", items.offsetBars[barIdx]);
 }
 
 function resetGame() {
@@ -470,6 +474,54 @@ function randomizeBall() {
     items.ball.ay = 0.995;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////
+// Draw stuff to DOM
+////////////////////////////////////////////////////////////////////////////////////////
+
+drawGame();
+
+function drawGame() {
+    // Wait for the next paint and re-draw all game objects
+    // TODO: remember the last position of all objects and only re-draw changes. Or use built-in ShadowDOM.
+    console.log("drawGame() called");
+    window.requestAnimationFrame(() => {
+        try {
+            drawBall();
+            drawPlayers();
+            writeNumbers();
+        } catch (e) {
+            console.log("drawGame() error", e);
+        }
+    });
+}
+
+function drawBall() {
+    elems.ball.style.left = (items.ball.x + elems.table.left - settings.ballRadius) + "px";
+    elems.ball.style.top = (items.ball.y + elems.table.top - settings.ballRadius) + "px";
+
+    if (settings.debugShowNumbers) {
+        elems.ball.innerHTML = `${items.ball.x} ${items.ball.y}`;
+    }
+}
+
+function drawPlayers() {
+    items.offsetBars.forEach((offset, barIdx) => {
+        settings.mapBarPlayer[barIdx].forEach((playerIdx) => {
+            elems.players[playerIdx].style.top = (offset + elems.table.top - settings.playerRadius) + "px";
+
+            if (settings.debugShowNumbers) {
+                let posX = settings.playersInit[playerIdx][0];
+                let posY = settings.playersInit[playerIdx][1] + items.offsetBars[barIdx];
+                elems.players[playerIdx].innerHTML = `${Math.round(posX)} ${Math.round(posY)}`;
+            }
+        });
+    });
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Scoreboard
+////////////////////////////////////////////////////////////////////////////////////////
+
 function writeScore() {
     elems.numbers.score.left.innerHTML = status.score.left;
     elems.numbers.score.right.innerHTML = status.score.right;
@@ -496,19 +548,5 @@ function writeWsStatus(s) {
     elems.numbers.websocket.style.backgroundColor = s;
     if (settings.isServer) {
         elems.numbers.websocket.style.border = "2px solid white";
-    }
-}
-
-function writeNumbersInPlayers() {
-    elems.players.forEach(p => {
-        const pos = saneDOMRect(p);
-        p.innerHTML = Math.round(pos.x) + " " + Math.round(pos.y);
-    });
-}
-
-function writeNumbersInBall() {
-    if (settings.debugShowNumbers) {
-        const pos = saneDOMRect(elems.ball);
-        elems.ball.innerHTML = Math.round(pos.x) + " " + Math.round(pos.y);
     }
 }
