@@ -45,7 +45,7 @@ const settings = {
 
 // Changing values shared with all other players by the Server
 const items = {
-    ball: { x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
+    ball: { x: settings.table.x, y: settings.table.y, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
     offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from middle
 };
 
@@ -124,18 +124,17 @@ function handleKeyDown(event) {
 
 function handleKeyPress(event) {
     if (event.key == "p") { // Pause game
-        status.hold = !status.hold;
-        console.log("Key p pressed: pause is", status.hold);
-        wsSend("statusupdate", { "key": "hold", "val": status.hold });
+        console.log("Key p pressed: pause/unpause game...");
+        wsSend("statusupdate", { "key": "hold", "val": (!status.hold) });
     }
     if (event.key == "b") { // Add random velocity to ball
         console.log("Key b pressed: randomly kick the ball...");
         randomizeBall();
-        wsSend("playstart", { "ball": items.ball });
     }
     if (event.key == "g") { // Add random velocity to ball
         console.log("Key g pressed: start game...");
-        gamePlay();
+        wsSend("playstart", { "ball": items.ball });
+        wsSend("statusupdate", { "key": "hold", "val": false });
     }
 }
 
@@ -156,7 +155,7 @@ function wsSend(action, data) {
 }
 
 function wsSyncBall() {
-    if (settings.isServer && !status.hold) {
+    if (settings.isServer) {
         console.log("wsSyncBall() called")
         wsSend("ballsync", { "ball": items.ball });
     }
@@ -175,10 +174,10 @@ function handleWebsocketClose(event) {
 }
 
 function handleWebsocketMessage(event) {
-    console.log("handleWebsocketMessage", event.data);
+    // console.log("handleWebsocketMessage", event.data);
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
-    console.log("Parsed response.action:", response.action);
+    console.log("handleWebsocketMessage() - Parsed response.action:", response.action);
     if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
     else if (response.action == "gamesync") handleWebsocketActionGameSync(response);
     else if (response.action == "syncok") handleWebsocketActionSyncOk(response);
@@ -268,6 +267,7 @@ function handleWebsocketActionNewGoal(response) {
 
 function handleWebsocketActionStatusUpdate(response) {
     status[response.key] = response.val;
+    console.log("handleWebsocketActionStatusUpdate() - Set status ", response.key, response.val);
     writeNumbers();
 }
 
@@ -318,7 +318,7 @@ function gamePlay() {
             console.log("An outer error occured:", e);
             resetGamePlay();
         }
-    }, 100);
+    }, 50);
 }
 
 function playerMovementIncr() {
@@ -346,6 +346,7 @@ function barSetInterval(intv, leftright, updown) {
 }
 
 function getGoalCollission(ball) {
+    return
     if (items.ball.y > items.goals[0].top && items.ball.y < items.goals[0].bottom) {
         if (items.ball.x >= (settings.table.right - settings.ballRadius)) return "right";
         if (items.ball.x <= (settings.table.left + settings.ballRadius)) return "left";
@@ -354,8 +355,11 @@ function getGoalCollission(ball) {
 }
 
 function handlePlayerCollission() {
+    return
     // console.log("handlePlayerCollission() called.");
-    const ft = (items.ball.x <= items.table.x) ? [0, 3] : [4, 7];
+    playersInit
+
+    const ft = (items.ball.x <= settings.table.x) ? [0, 3] : [4, 7];
     const c = Math.pow(settings.ballRadius + items.player.radius, 2);
 
     for (let i = ft[0]; i <= ft[1]; i++) {
@@ -406,16 +410,16 @@ function handleBallDeflection(player) {
 }
 
 function handleWallCollission() {
-    if (items.ball.vx < 0 && items.ball.x < (items.table.left + settings.ballRadius)) {
+    if (items.ball.vx < 0 && items.ball.x < (settings.table.left + settings.ballRadius)) {
         items.ball.vx *= -1;
     }
-    if (items.ball.vy < 0 && items.ball.y < (items.table.top + settings.ballRadius)) {
+    if (items.ball.vy < 0 && items.ball.y < (settings.table.top + settings.ballRadius)) {
         items.ball.vy *= -1;
     }
-    if (items.ball.vx > 0 && items.ball.x > (items.table.right - settings.ballRadius)) {
+    if (items.ball.vx > 0 && items.ball.x > (settings.table.right - settings.ballRadius)) {
         items.ball.vx *= -1;
     }
-    if (items.ball.vy > 0 && items.ball.y > (items.table.bottom - settings.ballRadius)) {
+    if (items.ball.vy > 0 && items.ball.y > (settings.table.bottom - settings.ballRadius)) {
         items.ball.vy *= -1;
     }
 }
@@ -431,6 +435,7 @@ function ballAVec() {
 }
 
 function moveBall() {
+    console.log("moveBall() - items.ball", items.ball);
     if (ballVVec() < 0.15) { items.ball.ax = 0; items.ball.ay = 0; }
     items.ball.vx *= items.ball.ax;
     items.ball.vy *= items.ball.ay;
@@ -492,7 +497,6 @@ drawGame();
 function drawGame() {
     // Wait for the next paint and re-draw all game objects
     // TODO: remember the last position of all objects and only re-draw changes. Or use built-in ShadowDOM.
-    console.log("drawGame() called");
     window.requestAnimationFrame(() => {
         try {
             drawBall();
@@ -505,11 +509,14 @@ function drawGame() {
 }
 
 function drawBall() {
-    elems.ball.style.left = (items.ball.x + elems.table.left - settings.ballRadius) + "px";
-    elems.ball.style.top = (items.ball.y + elems.table.top - settings.ballRadius) + "px";
+    let posX = Math.round(items.ball.x + elems.table.style.left - settings.ballRadius);
+    let posY = Math.round(items.ball.y + elems.table.style.top - settings.ballRadius);
+
+    elems.ball.style.left = `${posX}px`;
+    elems.ball.style.top =  `${posY}px`;
 
     if (settings.debugShowNumbers) {
-        elems.ball.innerHTML = `${items.ball.x} ${items.ball.y}`;
+        elems.ball.innerHTML = `${posX} ${posY}`;
     }
 }
 
@@ -518,7 +525,7 @@ function drawPlayers() {
         settings.mapBarPlayer[barIdx].forEach((playerIdx) => {
             let posX = Math.round(settings.playersInit[playerIdx][0]);
             let posY = Math.round(settings.playersInit[playerIdx][1] + offset - settings.playerRadius);
-            elems.players[playerIdx].style.top = posY + "px";
+            elems.players[playerIdx].style.top = `${posY}px`;
 
             if (settings.debugShowNumbers) {
                 elems.players[playerIdx].innerHTML = `${posX} ${posY}`;
