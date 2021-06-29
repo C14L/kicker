@@ -354,56 +354,95 @@ function getGoalCollission(ball) {
     return null;
 }
 
-function handlePlayerCollission() {
-    return
-    // console.log("handlePlayerCollission() called.");
-    playersInit
+function getBarIdxCloseToBall() {
+    // finds the bar that is close enough to the ball to be able to
+    // influence it. Tak ethe first player from each bar to find each
+    // bar's x coord.
+    let maxDist = settings.playerRadius + settings.ballRadius + 13;
+    let firstPlayerOfBar = settings.mapBarPlayer.map(x => x[0]);
 
-    const ft = (items.ball.x <= settings.table.x) ? [0, 3] : [4, 7];
-    const c = Math.pow(settings.ballRadius + items.player.radius, 2);
-
-    for (let i = ft[0]; i <= ft[1]; i++) {
-        const barx = tableDOMRect(elems.bars[i]).x;
-
-        if (items.ball.x + settings.ballRadius > barx - items.player.radius && items.ball.x - settings.ballRadius < barx + items.player.radius) {
-            elems.bars[i].classList.add("impact");
-            /* jshint -W083 */
-            setTimeout(() => { elems.bars[i].classList.remove("impact"); }, 100);
-
-            settings.mapBarPlayer[i].forEach(pi => {
-                /* jshint +W083 */
-                const player = tableDOMRect(elems.players[pi]);
-                const ab = Math.pow(items.ball.x - player.x, 2) + Math.pow(items.ball.y - player.y, 2);
-                // console.log("ab", ab);
-
-                if (ab <= c) {
-                    elems.players[pi].classList.add("impact");
-                    setTimeout(() => { elems.players[pi].classList.remove("impact"); }, 100);
-                    // console.log("ball is in player range");
-                    handleBallDeflection(player);
-
-                    if (status.kickBars[pi]) {
-                        items.ball.vx = settings.kickSpeed[0];
-                        items.ball.vy = settings.kickSpeed[1];
-                    }
-                }
-            });
-        }
+    for (let i = 0; i < elems.bars.length; i++) {
+        let playerIdx = firstPlayerOfBar[i];
+        let lowLim = settings.playersInit[playerIdx][0] - maxDist;
+        let upLim = settings.playersInit[playerIdx][0] + maxDist;
+        if ((items.ball.x > lowLim) && (items.ball.x < upLim)) return i;
     }
+
+    return null;
 }
 
-function handleBallDeflection(player) {
-    /* TODO: Now do a more precise check taking curvature into account */
-    if (items.ball.x < player.x && items.ball.y < player.y) {
+function getPlayerIdxCloseToBall(closeBarIdx) {
+    // finds the player from a given bar that is close enough to
+    // the ball to be able to influence it
+    let maxDist = settings.playerRadius + settings.ballRadius + 13;
+
+    for (let i = 0; i < settings.mapBarPlayer[closeBarIdx].length; i++) {
+        let playerIdx = settings.mapBarPlayer[closeBarIdx][i];
+        let lowLim = settings.playersInit[playerIdx][1] - maxDist;
+        let upLim = settings.playersInit[playerIdx][1] + maxDist;
+        if ((items.ball.y > lowLim) && (items.ball.y < upLim)) return playerIdx;
+    }
+
+    return null;
+}
+
+function handlePlayerCollission() {
+    let closeBarIdx = getBarIdxCloseToBall();
+    if (!closeBarIdx) return;
+
+    // marker the bar that is in the area of influence of the ball
+    elems.bars[closeBarIdx].classList.add("impact");
+    setTimeout(() => { elems.bars[closeBarIdx].classList.remove("impact"); }, 500);
+
+    // find idx of player close to ball, if any
+    let closePlayerIdx = getPlayerIdxCloseToBall(closeBarIdx);
+    if (!closePlayerIdx) return;
+
+    // marker the player that is in the area of influence of the ball
+    elems.players[closePlayerIdx].classList.add("impact");
+    setTimeout(() => { elems.players[closePlayerIdx].classList.remove("impact"); }, 500);
+
+    // check if the player has any effect on the ball
+    handleBallDeflection(closePlayerIdx);
+
+    // handleBallImpulse(closePlayerIdx);
+    // if (status.kickBars[pi]) {
+    //     items.ball.vx = settings.kickSpeed[0];
+    //     items.ball.vy = settings.kickSpeed[1];
+    // }
+}
+
+// Return the index of the bar that the player is on
+function getBarIdxOfPlayer(playerIdx) {
+    for (let i = 0; i < settings.mapBarPlayer.length; i++) {
+        if (settings.mapBarPlayer[i].indexOf(playerIdx) >= 0) {
+            return i;
+        }
+    }
+    return null;
+}
+
+function getPlayerPosXY(playerIdx) {
+    let player = settings.playersInit[playerIdx];
+    let barIdx = getBarIdxOfPlayer(playerIdx);
+    let offsetY = items.offsetBars[barIdx];
+    return [player[0], player[1] + offsetY];
+}
+
+/* TODO: Now do a more precise check taking curvature into account */
+function handleBallDeflection(playerIdx) {
+    let playerXY = getPlayerPosXY(playerIdx);
+
+    if (items.ball.x < playerXY.x && items.ball.y < playerXY.y) {
         items.ball.vx *= -1;
         items.ball.vy *= -1;
-    } else if (items.ball.x < player.x && items.ball.y >= player.y) {
+    } else if (items.ball.x < playerXY.x && items.ball.y >= playerXY.y) {
         items.ball.vx *= -1;
         // items.ball.vy *= -1;
-    } else if (items.ball.x >= player.x && items.ball.y > player.y) {
+    } else if (items.ball.x >= playerXY.x && items.ball.y > playerXY.y) {
         items.ball.vx *= -1;
         // items.ball.vy *= -1;
-    } else if (items.ball.x >= player.x && items.ball.y < player.y) {
+    } else if (items.ball.x >= playerXY.x && items.ball.y < playerXY.y) {
         items.ball.vx *= -1;
         items.ball.vy *= -1;
     }
@@ -435,7 +474,7 @@ function ballAVec() {
 }
 
 function moveBall() {
-    console.log("moveBall() - items.ball", items.ball);
+    // console.log("moveBall() - items.ball", items.ball);
     if (ballVVec() < 0.15) { items.ball.ax = 0; items.ball.ay = 0; }
     items.ball.vx *= items.ball.ax;
     items.ball.vy *= items.ball.ay;
@@ -482,10 +521,11 @@ function resetGame() {
 }
 
 function randomizeBall() {
-    items.ball.vx = Math.random() * 20;
-    items.ball.vy = Math.random() * 20;
+    items.ball.vx = (10 + Math.random() * 10) * ((Math.random() < 0.5) ? 1 : -1);
+    items.ball.vy = (10 + Math.random() * 10) * ((Math.random() < 0.5) ? 1 : -1);
     items.ball.ax = 0.995;
     items.ball.ay = 0.995;
+    console.log("Ball randomized - items.ball", items.ball);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
