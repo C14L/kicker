@@ -426,26 +426,43 @@ function getPlayerPosXY(playerIdx) {
     let player = settings.playersInit[playerIdx];
     let barIdx = getBarIdxOfPlayer(playerIdx);
     let offsetY = items.offsetBars[barIdx];
-    return [player[0], player[1] + offsetY];
+    return {x: player[0], y: (player[1] + offsetY)};
 }
 
 /* TODO: Now do a more precise check taking curvature into account */
 function handleBallDeflection(playerIdx) {
-    let playerXY = getPlayerPosXY(playerIdx);
+    let player = getPlayerPosXY(playerIdx);
 
-    if (items.ball.x < playerXY.x && items.ball.y < playerXY.y) {
-        items.ball.vx *= -1;
-        items.ball.vy *= -1;
-    } else if (items.ball.x < playerXY.x && items.ball.y >= playerXY.y) {
-        items.ball.vx *= -1;
-        // items.ball.vy *= -1;
-    } else if (items.ball.x >= playerXY.x && items.ball.y > playerXY.y) {
-        items.ball.vx *= -1;
-        // items.ball.vy *= -1;
-    } else if (items.ball.x >= playerXY.x && items.ball.y < playerXY.y) {
+    // current distance between ball and player
+    let distBallPlayer = Math.round(Math.sqrt(Math.pow(items.ball.x - player.x, 2) + Math.pow(items.ball.y - player.y, 2)));
+
+    // at this distance, the ball bounces off the player
+    let minDist = settings.ballRadius + settings.playerRadius;
+
+    // at this distance, the player must be kicking for the ball to bouce off
+    let kickDist = minDist + 10 ;
+
+    // TODO: here we need a bunch of tan and cot and sin and cos and
+    // whatnot to calc the angle of the reflection surface and stuff
+    // see notepad scribbles
+    if (distBallPlayer <= minDist) {
         items.ball.vx *= -1;
         items.ball.vy *= -1;
     }
+
+    // if (items.ball.x < player.x && items.ball.y < player.y) {
+    //     items.ball.vx *= -1;
+    //     items.ball.vy *= -1;
+    // } else if (items.ball.x < player.x && items.ball.y >= player.y) {
+    //     items.ball.vx *= -1;
+    //     // items.ball.vy *= -1;
+    // } else if (items.ball.x >= player.x && items.ball.y > player.y) {
+    //     items.ball.vx *= -1;
+    //     // items.ball.vy *= -1;
+    // } else if (items.ball.x >= player.x && items.ball.y < player.y) {
+    //     items.ball.vx *= -1;
+    //     items.ball.vy *= -1;
+    // }
 }
 
 function handleWallCollission() {
