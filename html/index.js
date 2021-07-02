@@ -45,7 +45,7 @@ const settings = {
 
 // Changing values shared with all other players by the Server
 const items = {
-    ball: { x: settings.table.x, y: settings.table.y, vx: 0, vy: 0, ax: 0, ay: 0, vvec: 0, avec: 0 },
+    ball: { x: settings.table.x, y: settings.table.y, vx: 0, vy: 0, ax: 0, ay: 0 },
     offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from middle
 };
 
@@ -71,6 +71,10 @@ const status = {
     ballSyncInterval: null,
 };
 
+////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////////////////////
+
 // Return DOM rectangle relative to the table, not the DOM body.
 function tableDOMRect(elem) {
     const domRect = elem.getBoundingClientRect();
@@ -89,6 +93,16 @@ function tableDOMRect(elem) {
 
 function last(arr) {
     return arr[arr.length - 1];
+}
+
+function ballVVec() {
+    // Ball's velocity vector length
+    return Math.sqrt(items.ball.vx ** 2 + items.ball.vy ** 2);
+}
+
+function ballAVec() {
+    // Ball's acceleration vector length
+    return Math.sqrt(items.ball.ax ** 2 + items.ball.ay ** 2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -371,53 +385,46 @@ function getBarIdxCloseToBall() {
     return null;
 }
 
-function getPlayerIdxCloseToBall(closeBarIdx) {
-    // finds the player from a given bar that is close enough to
-    // the ball to be able to influence it
-    let maxDist = settings.playerRadius + settings.ballRadius + 13;
-
-    for (let i = 0; i < settings.mapBarPlayer[closeBarIdx].length; i++) {
-        let playerIdx = settings.mapBarPlayer[closeBarIdx][i];
-        let lowLim = settings.playersInit[playerIdx][1] - maxDist;
-        let upLim = settings.playersInit[playerIdx][1] + maxDist;
-        if ((items.ball.y > lowLim) && (items.ball.y < upLim)) return playerIdx;
+function getPlayerIdxCloseToBall() {
+    let minDist = Math.pow(settings.playerRadius + settings.ballRadius, 2);
+    for (let playerIdx = 0; playerIdx < settings.playersInit.length; playerIdx++) {
+        let player = getPlayerPosXY(playerIdx);
+        let curDist = Math.pow(player.x - items.ball.x, 2) + Math.pow(player.y - items.ball.y, 2);
+        if (curDist <= minDist) return playerIdx;
     }
-
     return null;
 }
 
 function handlePlayerCollission() {
-    let closeBarIdx = getBarIdxCloseToBall();
-    if (!closeBarIdx) return;
-
-    // marker the bar that is in the area of influence of the ball
-    elems.bars[closeBarIdx].classList.add("impact");
-    setTimeout(() => { elems.bars[closeBarIdx].classList.remove("impact"); }, 500);
-
-    // find idx of player close to ball, if any
-    let closePlayerIdx = getPlayerIdxCloseToBall(closeBarIdx);
+    let closePlayerIdx = getPlayerIdxCloseToBall();
     if (!closePlayerIdx) return;
+    let player = getPlayerPosXY(closePlayerIdx);
 
-    // marker the player that is in the area of influence of the ball
     elems.players[closePlayerIdx].classList.add("impact");
     setTimeout(() => { elems.players[closePlayerIdx].classList.remove("impact"); }, 500);
 
-    // check if the player has any effect on the ball
-    handleBallDeflection(closePlayerIdx);
+    let distance = Math.sqrt(Math.pow(player.x - items.ball.x, 2) + Math.pow(player.y - items.ball.y, 2));
+    let overlap = distance - settings.ballRadius - settings.playerRadius;
+    if (overlap > 0) return;
 
-    // handleBallImpulse(closePlayerIdx);
-    // if (status.kickBars[pi]) {
-    //     items.ball.vx = settings.kickSpeed[0];
-    //     items.ball.vy = settings.kickSpeed[1];
-    // }
+    normalX = (items.ball.x - player.x) / distance;
+    normalY = (items.ball.y - player.y) / distance;
+    tangentX = -normalY;
+    tangentY = normalX;
+
+    normalDP1 = items.ball.vx * normalX + items.ball.vy * normalY;
+    normalDP2 = 0; // assume player doesn't move. it may, but we ignore that for now
+    tangentalDP1 = items.ball.vx * tangentX + items.ball.vy * tangentY;
+    momentum1 = (normalDP1 * (1 - 100) + 2.0 * 100 * normalDP2 * normalDP2) / (1 + 100);
+
+    items.ball.vx = tangentX * tangentalDP1 + normalX * momentum1;
+    items.ball.vy = tangentY * tangentalDP1 + normalY * momentum1;
 }
 
 // Return the index of the bar that the player is on
 function getBarIdxOfPlayer(playerIdx) {
     for (let i = 0; i < settings.mapBarPlayer.length; i++) {
-        if (settings.mapBarPlayer[i].indexOf(playerIdx) >= 0) {
-            return i;
-        }
+        if (settings.mapBarPlayer[i].indexOf(playerIdx) >= 0) return i;
     }
     return null;
 }
@@ -427,42 +434,6 @@ function getPlayerPosXY(playerIdx) {
     let barIdx = getBarIdxOfPlayer(playerIdx);
     let offsetY = items.offsetBars[barIdx];
     return {x: player[0], y: (player[1] + offsetY)};
-}
-
-/* TODO: Now do a more precise check taking curvature into account */
-function handleBallDeflection(playerIdx) {
-    let player = getPlayerPosXY(playerIdx);
-
-    // current distance between ball and player
-    let distBallPlayer = Math.round(Math.sqrt(Math.pow(items.ball.x - player.x, 2) + Math.pow(items.ball.y - player.y, 2)));
-
-    // at this distance, the ball bounces off the player
-    let minDist = settings.ballRadius + settings.playerRadius;
-
-    // at this distance, the player must be kicking for the ball to bouce off
-    let kickDist = minDist + 10 ;
-
-    // TODO: here we need a bunch of tan and cot and sin and cos and
-    // whatnot to calc the angle of the reflection surface and stuff
-    // see notepad scribbles
-    if (distBallPlayer <= minDist) {
-        items.ball.vx *= -1;
-        items.ball.vy *= -1;
-    }
-
-    // if (items.ball.x < player.x && items.ball.y < player.y) {
-    //     items.ball.vx *= -1;
-    //     items.ball.vy *= -1;
-    // } else if (items.ball.x < player.x && items.ball.y >= player.y) {
-    //     items.ball.vx *= -1;
-    //     // items.ball.vy *= -1;
-    // } else if (items.ball.x >= player.x && items.ball.y > player.y) {
-    //     items.ball.vx *= -1;
-    //     // items.ball.vy *= -1;
-    // } else if (items.ball.x >= player.x && items.ball.y < player.y) {
-    //     items.ball.vx *= -1;
-    //     items.ball.vy *= -1;
-    // }
 }
 
 function handleWallCollission() {
@@ -478,16 +449,6 @@ function handleWallCollission() {
     if (items.ball.vy > 0 && items.ball.y > (settings.table.bottom - settings.ballRadius)) {
         items.ball.vy *= -1;
     }
-}
-
-function ballVVec() {
-    // Ball's velocity vector length
-    return Math.sqrt(items.ball.vx ** 2 + items.ball.vy ** 2);
-}
-
-function ballAVec() {
-    // Ball's acceleration vector length
-    return Math.sqrt(items.ball.ax ** 2 + items.ball.ay ** 2);
 }
 
 function moveBall() {
