@@ -411,7 +411,7 @@ function getPlayerIdxCloseToBall() {
 
 function handlePlayerCollission() {
     let closePlayerIdx = getPlayerIdxCloseToBall();
-    if (!closePlayerIdx) return;
+    if (closePlayerIdx === null) return;
     let barIdx = getBarIdxOfPlayer(closePlayerIdx);
     let player = getPlayerPosXY(closePlayerIdx);
 
