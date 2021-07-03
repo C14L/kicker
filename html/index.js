@@ -1,8 +1,15 @@
 
-// TODO: asign each player their pair of bars
 // TODO: sync bar movement between tables
-// TODO: ball physics: speed and drag
-// TODO: ball physics: collisions with players
+//       - Server user broadcasts bar position once a second to override sync errors
+//       - every user keeps track of all bar positions and velocities
+//       - bar commands are taken from websocket messages,
+//       - key press does not directly control bars, only sends websocket messages
+
+// TODO: improve ball physics speed and drag
+// TODO: in handleWebsocketActionSyncOk() check if every player is registered
+//       only once and that registered and sync'ed players match
+// TODO: in drawGame() maybe remember the last position of all objects and only
+//       re-draw changes. Or use built-in ShadowDOM.
 
 // Local HTML elements used to render the game
 const elems = {
@@ -95,13 +102,13 @@ function last(arr) {
     return arr[arr.length - 1];
 }
 
+// Ball's velocity vector length
 function ballVVec() {
-    // Ball's velocity vector length
     return Math.sqrt(items.ball.vx ** 2 + items.ball.vy ** 2);
 }
 
+// Ball's acceleration vector length
 function ballAVec() {
-    // Ball's acceleration vector length
     return Math.sqrt(items.ball.ax ** 2 + items.ball.ay ** 2);
 }
 
@@ -122,18 +129,9 @@ function handleKeyUp(event) {
 }
 
 function handleKeyDown(event) {
-    if (event.key == "s") { // kick the ball
-        wsSend("kickbar", { "bar": status.playerBars.left });
+    if (event.key == "s") wsSend("kickbar", { "bar": status.playerBars.left });
+    if (event.key == "k") wsSend("kickbar", { "bar": status.playerBars.right });
 
-        // status.kickBars[status.playerBars.left] = 1;
-        // setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200);
-    }
-    if (event.key == "k") { // kick the ball
-        wsSend("kickbar", { "bar": status.playerBars.right });
-
-        // status.kickBars[status.playerBars.right] = 1;
-        // setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200);
-    }
     if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
     if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
     if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
@@ -172,9 +170,10 @@ function wsSend(action, data) {
     ws.send(JSON.stringify(data));
 }
 
+// Server user broadcasts ball position to all players
 function wsSyncBall() {
     if (settings.isServer) {
-        console.log("wsSyncBall() called")
+        // console.log("wsSyncBall() called")
         wsSend("ballsync", { "ball": items.ball });
     }
 }
@@ -195,7 +194,7 @@ function handleWebsocketMessage(event) {
     // console.log("handleWebsocketMessage", event.data);
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
-    console.log("handleWebsocketMessage() - Parsed response.action:", response.action);
+    // console.log("handleWebsocketMessage() - Parsed response.action:", response.action);
     if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
     else if (response.action == "gamesync") handleWebsocketActionGameSync(response);
     else if (response.action == "syncok") handleWebsocketActionSyncOk(response);
@@ -246,15 +245,13 @@ function handleWebsocketActionPlayerlist(response) {
 function handleWebsocketActionGameSync(response) {
     console.log("Received 'gamesync' action with 'items' being: ", items);
     items.ball = response.ball;
-    items.player = response.player;
-    items.players = response.players;
+    items.offsetBars = response.offsetBars;
     console.log("Updated items due to 'gamesync' action to: ", items);
     wsSend("syncok", { "player": settings.userId });
 }
 
+// A sync was finished, count players ready
 function handleWebsocketActionSyncOk(response) {
-    // A sync was finished, count players ready
-    // TODO: check if every player is registered only once and that registered and sync'ed players match
     if (status.syncOk.indexOf(response.player) == -1) status.syncOk.push(response.player);
     if (settings.isServer && status.syncOk.length == settings.playerLimit) wsSend("playprepare");
     writeWsConnectCount();
@@ -497,12 +494,12 @@ function moveBar(barIdx, dir) {
     if (dir == "down" && posY + settings.playerRadius > settings.table.bottom) return;
 
     items.offsetBars[barIdx] = newOffset;
-    console.log("new items.offsetBars[barIdx]:", barIdx, items.offsetBars[barIdx]);
+    // console.log("new items.offsetBars[barIdx]:", barIdx, items.offsetBars[barIdx]);
 }
 
+// After a goal, reset some status and item properties
 function resetGame() {
-    console.log("resetGame() called");
-    // After a goal, reset some status and item properties
+    // console.log("resetGame() called");
     status.goalHit = false;
     items.ball.x = items.table.x;
     items.ball.y = items.table.y;
@@ -513,14 +510,10 @@ function resetGame() {
 
     const msg = {
         "hold": status.hold,
-        // "table": items.table, // now has a default size+position
-        // "goals": items.goals, // now has a default size+position
         "ball": items.ball,
-        "bars": items.bars,
-        "player": items.player,
-        "players": items.players,
+        "offsetBars": items.offsetBars,
     };
-    console.log("Now sending gamesync message:", msg);
+    // console.log("Now sending gamesync message:", msg);
     wsSend("gamesync", msg);
 }
 
@@ -529,7 +522,7 @@ function randomizeBall() {
     items.ball.vy = (10 + Math.random() * 10) * ((Math.random() < 0.5) ? 1 : -1);
     items.ball.ax = 0.995;
     items.ball.ay = 0.995;
-    console.log("Ball randomized - items.ball", items.ball);
+    // console.log("Ball randomized - items.ball", items.ball);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -538,9 +531,8 @@ function randomizeBall() {
 
 drawGame();
 
+// Wait for the next paint and re-draw all game objects
 function drawGame() {
-    // Wait for the next paint and re-draw all game objects
-    // TODO: remember the last position of all objects and only re-draw changes. Or use built-in ShadowDOM.
     window.requestAnimationFrame(() => {
         try {
             drawBall();
