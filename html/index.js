@@ -123,12 +123,16 @@ function handleKeyUp(event) {
 
 function handleKeyDown(event) {
     if (event.key == "s") { // kick the ball
-        status.kickBars[status.playerBars.left] = 1;
-        setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200);
+        wsSend("kickbar", { "bar": status.playerBars.left });
+
+        // status.kickBars[status.playerBars.left] = 1;
+        // setTimeout(() => { status.kickBars[status.playerBars.left] = 0; }, 200);
     }
     if (event.key == "k") { // kick the ball
-        status.kickBars[status.playerBars.right] = 1;
-        setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200);
+        wsSend("kickbar", { "bar": status.playerBars.right });
+
+        // status.kickBars[status.playerBars.right] = 1;
+        // setTimeout(() => { status.kickBars[status.playerBars.right] = 0; }, 200);
     }
     if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
     if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
@@ -201,7 +205,17 @@ function handleWebsocketMessage(event) {
     else if (response.action == "newgoal") handleWebsocketActionNewGoal(response);
     else if (response.action == "statusupdate") handleWebsocketActionStatusUpdate(response);
     else if (response.action == "finish") handleWebsocketActionFinish(response);
+    else if (response.action == "kickbar") handleWebsocketActionKickBar(response);
     writeWsStatus('yellow');
+}
+
+function handleWebsocketActionKickBar(response) {
+    status.kickBars[response.bar] = 1;
+    elems.bars[response.bar].classList.add("kicking");
+    setTimeout(() => {
+        status.kickBars[response.bar] = 0;
+        elems.bars[response.bar].classList.remove("kicking");
+    }, 200);
 }
 
 function handleWebsocketActionPlayerlist(response) {
@@ -398,6 +412,7 @@ function getPlayerIdxCloseToBall() {
 function handlePlayerCollission() {
     let closePlayerIdx = getPlayerIdxCloseToBall();
     if (!closePlayerIdx) return;
+    let barIdx = getBarIdxOfPlayer(closePlayerIdx);
     let player = getPlayerPosXY(closePlayerIdx);
 
     elems.players[closePlayerIdx].classList.add("impact");
@@ -405,7 +420,12 @@ function handlePlayerCollission() {
 
     let distance = Math.sqrt(Math.pow(player.x - items.ball.x, 2) + Math.pow(player.y - items.ball.y, 2));
     let overlap = distance - settings.ballRadius - settings.playerRadius;
-    if (overlap > 0) return;
+    if (overlap > 0) return; // ball and player aren't touching
+
+    // TODO: if there is any overlapping, push ball to restore physics
+    // move ball so it doesn't overlap with player
+    // items.ball.x += overlap + (items.ball.x - player.x) / distance;
+    // items.ball.y += overlap + (items.ball.y - player.y) / distance;
 
     normalX = (items.ball.x - player.x) / distance;
     normalY = (items.ball.y - player.y) / distance;
@@ -416,6 +436,12 @@ function handlePlayerCollission() {
     normalDP2 = 0; // assume player doesn't move. it may, but we ignore that for now
     tangentalDP1 = items.ball.vx * tangentX + items.ball.vy * tangentY;
     momentum1 = (normalDP1 * (1 - 100) + 2.0 * 100 * normalDP2 * normalDP2) / (1 + 100);
+
+    if (status.kickBars[barIdx] === 1) {
+        // TODO: For ball direction to the back, mmirror ball direction
+        //       towards the front, maintining the angle.
+        momentum1 += 30;
+    }
 
     items.ball.vx = tangentX * tangentalDP1 + normalX * momentum1;
     items.ball.vy = tangentY * tangentalDP1 + normalY * momentum1;

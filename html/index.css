@@ -132,6 +132,10 @@ body {
     background-color: red;
 }
 
+#table > .bar.kicking {
+    background-color: blue;
+}
+
 #table > .bar.keeper.black {
     left: 10%;
 }
