@@ -70,6 +70,56 @@ body {
     transition: background-color 500ms linear;
 }
 
+#userbars {
+    position: fixed;
+    top: calc(50px + var(--table-height) + 10px);
+    left: calc(((100vw - var(--table-width)) / 2) + 70px);
+    padding: 0;
+    margin: 0;
+}
+
+#userbars > div {
+    display: inline-block;
+    background-color: lightgray;
+    margin: 0 5px;
+    padding: 5px 0;
+    width: calc(var(--table-width) / 9.5);
+    font-size: large;
+    text-align: center;
+}
+
+#userbars > div:nth-child(1) {
+    left: 10%;
+}
+
+#userbars > div:nth-child(2) {
+    left: 21%;
+}
+
+#userbars > div:nth-child(3) {
+    left: 32%;
+}
+
+#userbars > div:nth-child(4) {
+    left: 43%;
+}
+
+#userbars > div:nth-child(5) {
+    right: 43%;
+}
+
+#userbars > div:nth-child(6) {
+    right: 32%;
+}
+
+#userbars > div:nth-child(7) {
+    right: 21%;
+}
+
+#userbars > div:nth-child(8) {
+    right: 10%;
+}
+
 #table {
     position: fixed;
     top: 50px;

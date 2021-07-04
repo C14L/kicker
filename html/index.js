@@ -13,6 +13,7 @@
 
 // Local HTML elements used to render the game
 const elems = {
+    userBars: [...document.querySelectorAll("#userbars > div")],
     bars: [...document.querySelectorAll("#table > .bar")],
     goals: [...document.querySelectorAll("#table > .goal")],
     players: [...document.querySelectorAll("#table > .bar > .player")],
@@ -54,6 +55,7 @@ const settings = {
 const items = {
     ball: { x: settings.table.x, y: settings.table.y, vx: 0, vy: 0, ax: 0, ay: 0 },
     offsetBars: [0, 0, 0, 0, 0, 0, 0, 0], // bar moved this much up/down from middle
+    userBars: [null, null, null, null, null, null, null, null], // username playing each bar
 };
 
 // Locally used changing values
@@ -63,13 +65,13 @@ const status = {
     gameOver: false,
     goalCollission: null,
     goalHit: false,
-    playerlist: [],  // list of connected players
+    userlist: [],  // list of connected players
     syncOk: [],  // list of sync'ed players
     kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
     playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
     playerBars: { "left": 2, "right": 4 }, // this player's own bars controlled with "left" and "right" hand
     score: { "left": 0, "right": 0 },
-
+    ws: null, // Websocket handler
     leftMoveUpInterval: null,
     leftMoveDownInterval: null,
     rightMoveUpInterval: null,
@@ -116,10 +118,12 @@ function ballAVec() {
 // Keyboard events
 ////////////////////////////////////////////////////////////////////////////////////////
 
-console.log("Adding keyboard events...");
-window.addEventListener('keyup', handleKeyUp);
-window.addEventListener('keydown', handleKeyDown);
-window.addEventListener('keypress', handleKeyPress);
+function keysInit() {
+    console.log("Adding keyboard events...");
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keypress', handleKeyPress);
+}
 
 function handleKeyUp(event) {
     if (event.key == "w") barClearInterval("leftMoveUpInterval");
@@ -158,16 +162,18 @@ function handleKeyPress(event) {
 // Websocket events
 ////////////////////////////////////////////////////////////////////////////////////////
 
-console.log("Opening Websocket and adding Websocket event listeners...");
-ws = new WebSocket(`ws://${window.location.host}/kicker/ws`);
-ws.addEventListener('open', handleWebsocketOpen);
-ws.addEventListener('close', handleWebsocketClose);
-ws.addEventListener('message', handleWebsocketMessage);
+function wsInit() {
+    console.log("Adding Websocket event listeners...");
+    status.ws = new WebSocket(`ws://${window.location.host}/kicker/ws`);
+    status.ws.addEventListener('open', handleWebsocketOpen);
+    status.ws.addEventListener('close', handleWebsocketClose);
+    status.ws.addEventListener('message', handleWebsocketMessage);
+}
 
 function wsSend(action, data) {
     data = data || {};
     data.action = action;
-    ws.send(JSON.stringify(data));
+    status.ws.send(JSON.stringify(data));
 }
 
 // Server user broadcasts ball position to all players
@@ -179,7 +185,7 @@ function wsSyncBall() {
 }
 
 function handleWebsocketOpen(event) {
-    console.log("handleWebsocketOpen", event.data);
+    console.log("handleWebsocketOpen", event);
     elems.numbers.websocket.style.backgroundColor = 'yellow';
     wsSend("register", { "game": settings.gameId, "user": settings.userId });
 }
@@ -195,7 +201,7 @@ function handleWebsocketMessage(event) {
     writeWsStatus('blue');
     let response = JSON.parse(event.data);
     // console.log("handleWebsocketMessage() - Parsed response.action:", response.action);
-    if (response.action == "playerlist") handleWebsocketActionPlayerlist(response);
+    if (response.action == "userlist") handleWebsocketActionUserBars(response);
     else if (response.action == "gamesync") handleWebsocketActionGameSync(response);
     else if (response.action == "syncok") handleWebsocketActionSyncOk(response);
     else if (response.action == "playprepare") handleWebsocketActionPlayPrepare(response);
@@ -217,47 +223,52 @@ function handleWebsocketActionKickBar(response) {
     }, 200);
 }
 
-function handleWebsocketActionPlayerlist(response) {
+// For all bars, set the assigned user
+function handleWebsocketActionUserBars(response) {
     status.hold = true;
-    status.playerlist = response.playerlist;
-    writePlayers();
-    console.log("Players:", response.playerlist);
+    status.userbars = response.userbars;
+    let uniqueUsers = [...new Set(response.userbars)];
+    console.log("@@@ handleWebsocketActionUserBars() -- Connected users:", uniqueUsers);
+    writeUsers();
+    writeUserBars();
 
-    if (response.playerlist.length == 1) {
+    if (uniqueUsers.length == 1) {
         settings.isServer = true;
         console.log("You are the first player, setting as server:", settings.isServer);
     }
-    else if (response.playerlist.length < settings.playerLimit) {
-        console.log("Waiting for more players:", response.playerlist);
+    else if (uniqueUsers.length < settings.playerLimit) {
+        console.log("Waiting for more players...");
     }
-    else if (response.playerlist.length == settings.playerLimit && settings.isServer) {
-        console.log("Calling resetGame to start game");
+    else if (uniqueUsers.length == settings.playerLimit && settings.isServer) {
+        console.log("You are the Server, so now calling resetGame to start game...");
         resetGame();
     }
-    else if (response.playerlist.length > settings.playerLimit) {
+    else if (uniqueUsers.length > settings.playerLimit) {
         alert("Error, too many players. How did that happen?! o.O");
     }
     else {
-        console.log("Enough players, but I am not server, so wait for the server to start the game.");
+        console.log("Both teams complete, but you are not the Server, so wait for the server to start the game...");
     }
 }
 
 function handleWebsocketActionGameSync(response) {
-    console.log("Received 'gamesync' action with 'items' being: ", items);
+    console.log("@@@ handleWebsocketActionGameSync() -- items", items);
     items.ball = response.ball;
     items.offsetBars = response.offsetBars;
     console.log("Updated items due to 'gamesync' action to: ", items);
-    wsSend("syncok", { "player": settings.userId });
+    wsSend("syncok", { "userId": settings.userId });
 }
 
-// A sync was finished, count players ready
+// A sync was finished, count users ready
 function handleWebsocketActionSyncOk(response) {
-    if (status.syncOk.indexOf(response.player) == -1) status.syncOk.push(response.player);
+    console.log("@@@ handleWebsocketActionSyncOk()");
+    if (status.syncOk.indexOf(response.userId) == -1) status.syncOk.push(response.userId);
     if (settings.isServer && status.syncOk.length == settings.playerLimit) wsSend("playprepare");
     writeWsConnectCount();
 }
 
 function handleWebsocketActionPlayPrepare(response) {
+    console.log("@@@ handleWebsocketActionPlayPrepare()");
     writeWsStatus('green');
     writeScore();
     if (settings.isServer) {
@@ -267,15 +278,18 @@ function handleWebsocketActionPlayPrepare(response) {
 }
 
 function handleWebsocketActionPlayStart(response) {
+    console.log("@@@ handleWebsocketActionPlayStart()");
     items.ball = response.ball;
     gamePlay();
 }
 
 function handleWebsocketActionBallSync(response) {
+    console.log("@@@ handleWebsocketActionBallSync()");
     items.ball = response.ball;
 }
 
 function handleWebsocketActionNewGoal(response) {
+    console.log("@@@ handleWebsocketActionNewGoal()");
     status.goalHit = true;
     clearInterval(status.animationInterval);
     clearInterval(status.ballSyncInterval);
@@ -291,12 +305,13 @@ function handleWebsocketActionNewGoal(response) {
 }
 
 function handleWebsocketActionStatusUpdate(response) {
+    console.log("@@@ handleWebsocketActionStatusUpdate() -- key, val", response.key, response.val);
     status[response.key] = response.val;
-    console.log("handleWebsocketActionStatusUpdate() - Set status ", response.key, response.val);
     writeNumbers();
 }
 
 function handleWebsocketActionFinish(response) {
+    console.log("@@@ handleWebsocketActionFinish()");
     alert("Winner is: ", response.winner);
     status.gameOver = true;
 }
@@ -371,7 +386,7 @@ function barSetInterval(intv, leftright, updown) {
 }
 
 function getGoalCollission(ball) {
-    return
+    return  // TODO: Check if ball hit a goal
     if (items.ball.y > items.goals[0].top && items.ball.y < items.goals[0].bottom) {
         if (items.ball.x >= (settings.table.right - settings.ballRadius)) return "right";
         if (items.ball.x <= (settings.table.left + settings.ballRadius)) return "left";
@@ -529,8 +544,6 @@ function randomizeBall() {
 // Draw stuff to DOM
 ////////////////////////////////////////////////////////////////////////////////////////
 
-drawGame();
-
 // Wait for the next paint and re-draw all game objects
 function drawGame() {
     window.requestAnimationFrame(() => {
@@ -574,15 +587,20 @@ function drawPlayers() {
 // Scoreboard
 ////////////////////////////////////////////////////////////////////////////////////////
 
+function writeUserBars() {
+    console.log("writeUserBars() called")
+    items.userBars.forEach((val, idx) => elems.userBars[idx].innerHTML = `${val}`);
+}
+
 function writeScore() {
     elems.numbers.score.left.innerHTML = status.score.left;
     elems.numbers.score.right.innerHTML = status.score.right;
 }
 
-function writePlayers() {
-    let li = [...status.playerlist];
+function writeUsers() {
+    console.log("writeUsers() called")
+    let li = [items.userBars[2], items.userBars[6], items.userBars[0], items.userBars[3]];
     const gameId = settings.gameId;
-    while (li.length < 4) li.push('___');
     elems.numbers.players.innerHTML = `${gameId}: ( ${li[0]} + ${li[1]} ) vs ( ${li[2]} + ${li[3]} )`;
 }
 
@@ -602,3 +620,11 @@ function writeWsStatus(s) {
         elems.numbers.websocket.style.border = "2px solid white";
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Run game
+////////////////////////////////////////////////////////////////////////////////////////
+
+wsInit();
+keysInit();
+drawGame();
