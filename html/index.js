@@ -179,8 +179,11 @@ function wsSend(action, data) {
 // Server user broadcasts ball position to all players
 function wsSyncBall() {
     if (settings.isServer) {
-        // console.log("wsSyncBall() called")
-        wsSend("ballsync", { "ball": items.ball });
+        wsSend("ballsync", {
+            "ball": items.ball,
+            "offsetBars": items.offsetBars,
+            "userBars": items.userBars,
+        });
     }
 }
 
@@ -226,29 +229,29 @@ function handleWebsocketActionKickBar(response) {
 // For all bars, set the assigned user
 function handleWebsocketActionUserBars(response) {
     status.hold = true;
-    status.userbars = response.userbars;
-    let uniqueUsers = [...new Set(response.userbars)];
-    console.log("@@@ handleWebsocketActionUserBars() -- Connected users:", uniqueUsers);
-    writeUsers();
-    writeUserBars();
+    status.userlist = response.userlist; // unique connected users
+    console.log("@@@ handleWebsocketActionUserBars() -- userlist:", status.userlist);
 
-    if (uniqueUsers.length == 1) {
+    if (status.userlist.length == 1) {
         settings.isServer = true;
         console.log("You are the first player, setting as server:", settings.isServer);
     }
-    else if (uniqueUsers.length < settings.playerLimit) {
+    else if (status.userlist.length < settings.playerLimit) {
         console.log("Waiting for more players...");
     }
-    else if (uniqueUsers.length == settings.playerLimit && settings.isServer) {
+    else if (status.userlist.length == settings.playerLimit && settings.isServer) {
         console.log("You are the Server, so now calling resetGame to start game...");
         resetGame();
     }
-    else if (uniqueUsers.length > settings.playerLimit) {
+    else if (status.userlist.length > settings.playerLimit) {
         alert("Error, too many players. How did that happen?! o.O");
     }
     else {
         console.log("Both teams complete, but you are not the Server, so wait for the server to start the game...");
     }
+
+    writeUsers();
+    writeUserBars();
 }
 
 function handleWebsocketActionGameSync(response) {
@@ -286,6 +289,7 @@ function handleWebsocketActionPlayStart(response) {
 function handleWebsocketActionBallSync(response) {
     console.log("@@@ handleWebsocketActionBallSync()");
     items.ball = response.ball;
+    items.offsetBars = response.offsetBars;
 }
 
 function handleWebsocketActionNewGoal(response) {
@@ -338,7 +342,7 @@ function gamePlay() {
     // Sync ball position via Websocket to others, if player is Server.
     // Each player calculates their ball's route independently. Usually,
     // the balls should have trajectories very close to each other.
-    status.ballSyncInterval = setInterval(() => wsSyncBall(), 1000);
+    status.ballSyncInterval = setInterval(() => wsSyncBall(), 250);
 
     status.animationInterval = setInterval(() => {
         try {

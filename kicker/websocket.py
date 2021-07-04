@@ -38,10 +38,10 @@ async def websocket_application(scope, receive, send):
             del _global_scope['connections'][send]
             del _global_scope['users'][user_id]
             print(_global_scope)
-            # Tell the others that this player just disconnected
+            # Tell the others that this user just disconnected
             await ws_send(_global_scope['games'][game_id]['connections'], {
-                'action': 'playerlist',
-                'playerlist': _global_scope['games'][game_id]['users'],
+                'action': 'userlist',
+                'userlist': _global_scope['games'][game_id]['users'],
             })
             break
 
@@ -65,7 +65,7 @@ async def websocket_application(scope, receive, send):
                     if len(_global_scope['games'][game_id]['users']) == 4:
                         await ws_send(send, {
                             'action': 'exception',
-                            'exception': 'game has already 4 players',
+                            'exception': 'game has already 4 users',
                         })
                     else:
                         if user_id not in _global_scope['games'][game_id]['users']:
@@ -75,8 +75,8 @@ async def websocket_application(scope, receive, send):
                             _global_scope['users'][user_id] = game_id
 
                         await ws_send(_global_scope['games'][game_id]['connections'], {
-                            'action': 'playerlist',
-                            'playerlist': _global_scope['games'][game_id]['users'],
+                            'action': 'userlist',
+                            'userlist': _global_scope['games'][game_id]['users'],
                         })
                 else:
                     await ws_send(_global_scope['games'][game_id]['connections'], data)
