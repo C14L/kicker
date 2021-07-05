@@ -45,7 +45,7 @@ const settings = {
     kickSpeed: [10, 10], // default "kick" acceleration
     mapBarPlayer: [[0], [1, 2], [3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18], [19, 20], [21]], // mapping of "player" objects onto "bar" objects
     playerLimit: 4, // number of human players per game
-    playerRadius: elems.players[0].offsetWidth / 2 ,
+    playerRadius: elems.players[0].offsetWidth / 2,
     playersInit: elems.players.map((elem) => [tableDOMRect(elem).x, tableDOMRect(elem).y]),
     table: { top: 0, left: 0, right: 1600, bottom: 800, width: 1600, height: 800, x: 800, y: 400 },
     userId: location.pathname.substr(1).split('/')[2],
@@ -69,7 +69,7 @@ const status = {
     syncOk: [],  // list of sync'ed players
     kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
     playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
-    playerBars: { "left": 2, "right": 4 }, // this player's own bars controlled with "left" and "right" hand
+    playerBars: { "left": null, "right": null }, // this player's own bars controlled with "left" and "right" hand
     score: { "left": 0, "right": 0 },
     ws: null, // Websocket handler
     leftMoveUpInterval: null,
@@ -181,10 +181,17 @@ function wsSyncBall() {
     if (settings.isServer) {
         wsSend("ballsync", {
             "ball": items.ball,
-            "offsetBars": items.offsetBars,
             "userBars": items.userBars,
         });
     }
+}
+
+// Each user broadcasts the positions of their own two bars to all players
+function wsSyncUserBars() {
+    let myOffsetBars = {};
+    myOffsetBars[status.playerBars.left] = items.offsetBars[status.playerBars.left];
+    myOffsetBars[status.playerBars.right] = items.offsetBars[status.playerBars.right];
+    wsSend("barssync", {"offsetBars": myOffsetBars});
 }
 
 function handleWebsocketOpen(event) {
@@ -210,6 +217,7 @@ function handleWebsocketMessage(event) {
     else if (response.action == "playprepare") handleWebsocketActionPlayPrepare(response);
     else if (response.action == "playstart") handleWebsocketActionPlayStart(response);
     else if (response.action == "ballsync") handleWebsocketActionBallSync(response);
+    else if (response.action == "barssync") handleWebsocketActionBarsSync(response);
     else if (response.action == "newgoal") handleWebsocketActionNewGoal(response);
     else if (response.action == "statusupdate") handleWebsocketActionStatusUpdate(response);
     else if (response.action == "finish") handleWebsocketActionFinish(response);
@@ -230,6 +238,7 @@ function handleWebsocketActionKickBar(response) {
 function handleWebsocketActionUserBars(response) {
     status.hold = true;
     status.userlist = response.userlist; // unique connected users
+    setUserBars();
     console.log("@@@ handleWebsocketActionUserBars() -- userlist:", status.userlist);
 
     if (status.userlist.length == 1) {
@@ -258,7 +267,9 @@ function handleWebsocketActionGameSync(response) {
     console.log("@@@ handleWebsocketActionGameSync() -- items", items);
     items.ball = response.ball;
     items.offsetBars = response.offsetBars;
+    items.userBars = response.userBars;
     console.log("Updated items due to 'gamesync' action to: ", items);
+    setUserBars();
     wsSend("syncok", { "userId": settings.userId });
 }
 
@@ -266,7 +277,9 @@ function handleWebsocketActionGameSync(response) {
 function handleWebsocketActionSyncOk(response) {
     console.log("@@@ handleWebsocketActionSyncOk()");
     if (status.syncOk.indexOf(response.userId) == -1) status.syncOk.push(response.userId);
-    if (settings.isServer && status.syncOk.length == settings.playerLimit) wsSend("playprepare");
+    if (settings.isServer && status.syncOk.length == settings.playerLimit) {
+        wsSend("playprepare");
+    }
     writeWsConnectCount();
 }
 
@@ -289,7 +302,13 @@ function handleWebsocketActionPlayStart(response) {
 function handleWebsocketActionBallSync(response) {
     console.log("@@@ handleWebsocketActionBallSync()");
     items.ball = response.ball;
-    items.offsetBars = response.offsetBars;
+}
+
+function handleWebsocketActionBarsSync(response) {
+    console.log("@@@ handleWebsocketActionBarsSync() -- response.offsetBars ", response.offsetBars);
+    for (let k in response.offsetBars) {
+        items.offsetBars[k] = response.offsetBars[k];
+    }
 }
 
 function handleWebsocketActionNewGoal(response) {
@@ -325,6 +344,7 @@ function handleWebsocketActionFinish(response) {
 ////////////////////////////////////////////////////////////////////////////////////////
 
 function resetGamePlay() {
+    if (status.barsSyncInterval) clearInterval(status.barsSyncInterval);
     if (status.ballSyncInterval) clearInterval(status.ballSyncInterval);
     if (status.animationInterval) clearInterval(status.animationInterval);
 }
@@ -342,7 +362,8 @@ function gamePlay() {
     // Sync ball position via Websocket to others, if player is Server.
     // Each player calculates their ball's route independently. Usually,
     // the balls should have trajectories very close to each other.
-    status.ballSyncInterval = setInterval(() => wsSyncBall(), 250);
+    status.ballSyncInterval = setInterval(() => wsSyncBall(), 500);
+    status.barsSyncInterval = setInterval(() => wsSyncUserBars(), 200);
 
     status.animationInterval = setInterval(() => {
         try {
@@ -475,7 +496,7 @@ function getPlayerPosXY(playerIdx) {
     let player = settings.playersInit[playerIdx];
     let barIdx = getBarIdxOfPlayer(playerIdx);
     let offsetY = items.offsetBars[barIdx];
-    return {x: player[0], y: (player[1] + offsetY)};
+    return { x: player[0], y: (player[1] + offsetY) };
 }
 
 function handleWallCollission() {
@@ -531,9 +552,45 @@ function resetGame() {
         "hold": status.hold,
         "ball": items.ball,
         "offsetBars": items.offsetBars,
+        "userBars": items.userBars, // what user plays which bars
     };
     // console.log("Now sending gamesync message:", msg);
     wsSend("gamesync", msg);
+}
+
+function setUserBars() {
+    if (status.userlist.length > 0) {
+        items.userBars[2] = status.userlist[0];
+        items.userBars[4] = status.userlist[0];
+        if (status.userlist[0] == settings.userId) {
+            status.playerBars.left = 2;
+            status.playerBars.right = 4;
+        }
+    }
+    if (status.userlist.length > 1) {
+        items.userBars[6] = status.userlist[1];
+        items.userBars[7] = status.userlist[1];
+        if (status.userlist[1] == settings.userId) {
+            status.playerBars.left = 6;
+            status.playerBars.right = 7;
+        }
+    }
+    if (status.userlist.length > 2) {
+        items.userBars[0] = status.userlist[2];
+        items.userBars[1] = status.userlist[2];
+        if (status.userlist[2] == settings.userId) {
+            status.playerBars.left = 0;
+            status.playerBars.right = 1;
+        }
+    }
+    if (status.userlist.length > 3) {
+        items.userBars[3] = status.userlist[3];
+        items.userBars[5] = status.userlist[3];
+        if (status.userlist[3] == settings.userId) {
+            status.playerBars.left = 3;
+            status.playerBars.right = 5;
+        }
+    }
 }
 
 function randomizeBall() {
@@ -566,7 +623,7 @@ function drawBall() {
     let posY = Math.round(items.ball.y + elems.table.style.top - settings.ballRadius);
 
     elems.ball.style.left = `${posX}px`;
-    elems.ball.style.top =  `${posY}px`;
+    elems.ball.style.top = `${posY}px`;
 
     if (settings.debugShowNumbers) {
         elems.ball.innerHTML = `${posX} ${posY}`;
