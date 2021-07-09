@@ -1,13 +1,32 @@
 
+// TODO: Improve user connect and reset
+//       - Let users select the bars they want to play on from the remaining free bars.
+//         userlist = [null, null, null, null]
+
+// TODO: Handle disconnects
+//       - When a user disconnects, do not change the other user's bars or teams.
+//       - Keep empty place free to be occupied by the next user who
+//         connects to the game.
+//       - On disconnect, auto-pause game, with option to continue with only
+//         three users.
+
+// TODO: Improve goal collision and goal counting
+//       - Have a goal box outside table field where the ball goes "into".
+//       - After a goal, display a "GOOOAL" message.
+//       - After a goal, auto-pause game, place the ball to the center,
+//         and wait for un[p]ause key.
+
 // TODO: sync bar movement between tables
-//       - Server user broadcasts bar position once a second to override sync errors
-//       - every user keeps track of all bar positions and velocities
-//       - bar commands are taken from websocket messages,
-//       - key press does not directly control bars, only sends websocket messages
+//       - DONE Server user broadcasts bar position once a second to override sync errors
+//       - DONE Every user keeps track of all bar positions and velocities
+//       - DONE Bar commands are taken from websocket messages,
+//       - WONT Key press does not directly control bars, only sends websocket messages
 
 // TODO: improve ball physics speed and drag
+
 // TODO: in handleWebsocketActionSyncOk() check if every player is registered
 //       only once and that registered and sync'ed players match
+
 // TODO: in drawGame() maybe remember the last position of all objects and only
 //       re-draw changes. Or use built-in ShadowDOM.
 
@@ -19,6 +38,7 @@ const elems = {
     players: [...document.querySelectorAll("#table > .bar > .player")],
     table: document.querySelector("#table"),
     ball: document.querySelector("#table > .ball"),
+    overlaymsg: document.querySelector("#overlaymsg"),
     numbers: {
         score: {
             left: document.querySelector("#numbers > .score > .left"),
@@ -191,7 +211,7 @@ function wsSyncUserBars() {
     let myOffsetBars = {};
     myOffsetBars[status.playerBars.left] = items.offsetBars[status.playerBars.left];
     myOffsetBars[status.playerBars.right] = items.offsetBars[status.playerBars.right];
-    wsSend("barssync", {"offsetBars": myOffsetBars});
+    wsSend("barssync", { "offsetBars": myOffsetBars });
 }
 
 function handleWebsocketOpen(event) {
@@ -265,6 +285,7 @@ function handleWebsocketActionUserBars(response) {
 
 function handleWebsocketActionGameSync(response) {
     console.log("@@@ handleWebsocketActionGameSync() -- items", items);
+    status.hold = response.hold;
     items.ball = response.ball;
     items.offsetBars = response.offsetBars;
     items.userBars = response.userBars;
@@ -313,17 +334,15 @@ function handleWebsocketActionBarsSync(response) {
 
 function handleWebsocketActionNewGoal(response) {
     console.log("@@@ handleWebsocketActionNewGoal()");
-    status.goalHit = true;
-    clearInterval(status.animationInterval);
-    clearInterval(status.ballSyncInterval);
-    status.animationInterval = null;
-    status.ballSyncInterval = null;
+    status.goalHit = true; // goal
+    status.hold = true;    // pause game
+
+    showOverlayMsg("GOooooooooooooooooooooooooooooooooAL!", 2000);
+    setTimeout(resetGame, 2000); // after a few seconds reset the game
 
     if (settings.isServer) {
         status.score[response.goalfor]++;
         wsSend("statusupdate", { "key": "score", "val": status.score });
-        if (status.score.left < 8 && status.score.rigth < 8) resetGame();
-        else wsSend("finish", { "winner": response.goalfor });
     }
 }
 
@@ -373,8 +392,10 @@ function gamePlay() {
                 handleWallCollission();
 
                 if (settings.isServer) {
-                    status.goalCollission = getGoalCollission();
-                    if (status.goalCollission) wsSend("newgoal", { "goalfor": status.goalCollission });
+                    goalCollission = getGoalCollission();
+                    if (goalCollission) {
+                        wsSend("newgoal", { "goalfor": goalCollission });
+                    }
                 }
             }
 
@@ -411,8 +432,7 @@ function barSetInterval(intv, leftright, updown) {
 }
 
 function getGoalCollission(ball) {
-    return  // TODO: Check if ball hit a goal
-    if (items.ball.y > items.goals[0].top && items.ball.y < items.goals[0].bottom) {
+    if (items.ball.y > settings.goals[0].top && items.ball.y < settings.goals[0].bottom) {
         if (items.ball.x >= (settings.table.right - settings.ballRadius)) return "right";
         if (items.ball.x <= (settings.table.left + settings.ballRadius)) return "left";
     }
@@ -539,23 +559,24 @@ function moveBar(barIdx, dir) {
 
 // After a goal, reset some status and item properties
 function resetGame() {
-    // console.log("resetGame() called");
+    console.log("resetGame() called");
     status.goalHit = false;
-    items.ball.x = items.table.x;
-    items.ball.y = items.table.y;
+    items.ball.x = settings.table.x;
+    items.ball.y = settings.table.y;
     items.ball.vx = 0;
     items.ball.vy = 0;
     items.ball.ax = 0;
     items.ball.ay = 0;
 
-    const msg = {
-        "hold": status.hold,
-        "ball": items.ball,
-        "offsetBars": items.offsetBars,
-        "userBars": items.userBars, // what user plays which bars
-    };
-    // console.log("Now sending gamesync message:", msg);
-    wsSend("gamesync", msg);
+    if (settings.isServer) {
+        randomizeBall();
+        wsSend("gamesync", {
+            "hold": status.hold,
+            "ball": items.ball,
+            "offsetBars": items.offsetBars,
+            "userBars": items.userBars, // what user plays which bars
+        });
+    }
 }
 
 function setUserBars() {
@@ -680,6 +701,17 @@ function writeWsStatus(s) {
     if (settings.isServer) {
         elems.numbers.websocket.style.border = "2px solid white";
     }
+}
+
+function showOverlayMsg(msg, timeout) {
+    elems.overlaymsg.innerText = msg;
+    elems.overlaymsg.style.display = "block";
+    if (timeout) setTimeout(hideOverlayMsg, timeout);
+}
+
+function hideOverlayMsg() {
+    elems.overlaymsg.style.display = "none";
+    elems.overlaymsg.innerText = "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
