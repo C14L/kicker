@@ -1,7 +1,9 @@
 import json
+import logging
 from copy import deepcopy
 from collections import defaultdict
 
+log = logging.getLogger(__name__)
 
 global_scope = defaultdict(dict)
 
@@ -19,25 +21,25 @@ async def websocket_application(scope, receive, send):
             "id": None,
         }
         event = await receive()
-        print(event)
-        print(_user["id"])
+        log.debug(event)
+        log.debug(_user["id"])
 
         if event['type'] == 'websocket.connect':
             await send({'type': 'websocket.accept'})
-            print("### CONNECT ###")
+            log.debug("### CONNECT ###")
 
         if event['type'] == 'websocket.disconnect':
-            print("### DISCONNECT ###")
-            print(_global_scope)
+            log.debug("### DISCONNECT ###")
+            log.debug(_global_scope)
             user_id = _global_scope['connections'][send]
-            print(user_id)
+            log.debug(user_id)
             game_id = _global_scope['users'][user_id]
-            print(game_id)
+            log.debug(game_id)
             _global_scope['games'][game_id]['users'].remove(user_id)
             _global_scope['games'][game_id]['connections'].remove(send)
             del _global_scope['connections'][send]
             del _global_scope['users'][user_id]
-            print(_global_scope)
+            log.debug(_global_scope)
             # Tell the others that this user just disconnected
             await ws_send(_global_scope['games'][game_id]['connections'], {
                 'action': 'userlist',
@@ -46,7 +48,7 @@ async def websocket_application(scope, receive, send):
             break
 
         if event['type'] == 'websocket.receive':
-            print("### RECEIVE ###")
+            log.debug("### RECEIVE ###")
 
             if event['text'] == 'ping':
                 await ws_send(send, 'pong')
@@ -81,7 +83,7 @@ async def websocket_application(scope, receive, send):
                 else:
                     await ws_send(_global_scope['games'][game_id]['connections'], data)
 
-            print(global_scope)
+            log.debug(global_scope)
 
 
 async def ws_send(send, data):
