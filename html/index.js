@@ -10,25 +10,7 @@
 //       - On disconnect, auto-pause game, with option to continue with only
 //         three users.
 
-// TODO: Improve goal collision and goal counting
-//       - Have a goal box outside table field where the ball goes "into".
-//       - After a goal, display a "GOOOAL" message.
-//       - After a goal, auto-pause game, place the ball to the center,
-//         and wait for un[p]ause key.
-
-// TODO: sync bar movement between tables
-//       - DONE Server user broadcasts bar position once a second to override sync errors
-//       - DONE Every user keeps track of all bar positions and velocities
-//       - DONE Bar commands are taken from websocket messages,
-//       - WONT Key press does not directly control bars, only sends websocket messages
-
 // TODO: improve ball physics speed and drag
-
-// TODO: in handleWebsocketActionSyncOk() check if every player is registered
-//       only once and that registered and sync'ed players match
-
-// TODO: in drawGame() maybe remember the last position of all objects and only
-//       re-draw changes. Or use built-in ShadowDOM.
 
 // Local HTML elements used to render the game
 const elems = {
