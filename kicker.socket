@@ -2,7 +2,7 @@
 Description=django kicker socket
 
 [Socket]
-ListenStream=/run/kicker.socket
+ListenStream=/home/chris/run/kicker.socket
 
 [Install]
 WantedBy=sockets.target

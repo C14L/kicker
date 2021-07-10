@@ -4,14 +4,14 @@ Requires=kicker.socket
 After=network.target
 
 [Service]
-PIDFile=/run/kicker.pid
+PIDFile=/home/chris/run/kicker.pid
 User=chris
 Group=chris
 RuntimeDirectory=daphne
 #RuntimeDirectory=uvicorn
 WorkingDirectory=/opt/kicker
 ExecStart=/home/chris/.virtualenvs/kicker/bin/daphne \
-    -u /run/kicker.socket \
+    -u /home/chris/run/kicker.socket \
     kicker.asgi:application
 # ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
 #     kicker.asgi:application \
