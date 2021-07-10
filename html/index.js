@@ -165,8 +165,11 @@ function handleKeyPress(event) {
 ////////////////////////////////////////////////////////////////////////////////////////
 
 function wsInit() {
-    console.log("Adding Websocket event listeners...");
-    status.ws = new WebSocket(`ws://${window.location.host}/kicker/ws`);
+    const schema = (location.protocol === "http:") ? "ws" : "wss";
+    const wsUrl = `${schema}://${window.location.host}/kicker/ws`;
+    console.log("Connecting WebSocket at URL", wsUrl);
+    status.ws = new WebSocket(wsUrl);
+    console.log("Adding WebSocket event listeners...");
     status.ws.addEventListener('open', handleWebsocketOpen);
     status.ws.addEventListener('close', handleWebsocketClose);
     status.ws.addEventListener('message', handleWebsocketMessage);
