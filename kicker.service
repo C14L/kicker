@@ -10,16 +10,7 @@ Group=chris
 RuntimeDirectory=daphne
 #RuntimeDirectory=uvicorn
 WorkingDirectory=/opt/kicker
-ExecStart=/home/chris/.virtualenvs/kicker/bin/daphne \
-    -u /home/chris/run/kicker.socket \
-    kicker.asgi:application
-# ExecStart=/home/chris/.virtualenvs/kicker/bin/uvicorn \
-#     kicker.asgi:application \
-#     --host 0.0.0.0 --port 8020 \
-#     --access-log \
-#     --log-level info \
-#     --workers 4 \
-#     --lifespan off
+ExecStart=/home/chris/.virtualenvs/kicker/bin/daphne -u /home/chris/run/kicker.socket kicker.asgi:application
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s TERM $MAINPID
 Restart=on-failure
