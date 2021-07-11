@@ -1,16 +1,4 @@
 
-// TODO: Improve user connect and reset
-//       - Let users select the bars they want to play on from the remaining free bars.
-//         userlist = [null, null, null, null]
-
-// TODO: Handle disconnects
-//       - When a user disconnects, do not change the other user's bars or teams.
-//       - Keep empty place free to be occupied by the next user who
-//         connects to the game.
-//       - On disconnect, auto-pause game, with option to continue with only
-//         three users.
-
-// TODO: improve ball physics speed and drag
 
 // Local HTML elements used to render the game
 const elems = {
