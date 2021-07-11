@@ -67,13 +67,13 @@ const status = {
     gameOver: false,
     goalCollission: null,
     goalHit: false,
-    userlist: [],  // list of connected players
-    syncOk: [],  // list of sync'ed players
-    kickBars: [0, 0, 0, 0, 0, 0, 0, 0], // activate a bar to kick against a ball
-    playerMovement: { "up": -2, "down": 2 }, // currenct bar speec
+    userlist: [null, null, null, null],          // list of connected players
+    syncOk: [],                                  // list of synced players
+    kickBars: [0, 0, 0, 0, 0, 0, 0, 0],          // activate a bar to kick against a ball
+    playerMovement: { "up": -2, "down": 2 },     // currenct bar speec
     playerBars: { "left": null, "right": null }, // this player's own bars controlled with "left" and "right" hand
     score: { "left": 0, "right": 0 },
-    ws: null, // Websocket handler
+    ws: null,                                    // Websocket handler
     leftMoveUpInterval: null,
     leftMoveDownInterval: null,
     rightMoveUpInterval: null,
@@ -241,23 +241,28 @@ function handleWebsocketActionKickBar(response) {
 
 // For all bars, set the assigned user
 function handleWebsocketActionUserBars(response) {
+    // User 0 plays yellow defense
+    // User 1 plays yellow offense
+    // User 2 plays black defense
+    // User 3 plays black offense
     status.hold = true;
     status.userlist = response.userlist; // unique connected users
+    let userCount = status.userlist.filter(x => x).length;
     setUserBars();
     console.log("@@@ handleWebsocketActionUserBars() -- userlist:", status.userlist);
 
-    if (status.userlist.length == 1) {
+    if (userCount == 1) {
         settings.isServer = true;
         console.log("You are the first player, setting as server:", settings.isServer);
     }
-    else if (status.userlist.length < settings.playerLimit) {
+    else if (userCount < settings.playerLimit) {
         console.log("Waiting for more players...");
     }
-    else if (status.userlist.length == settings.playerLimit && settings.isServer) {
+    else if (userCount == settings.playerLimit && settings.isServer) {
         console.log("You are the Server, so now calling resetGame to start game...");
         resetGame();
     }
-    else if (status.userlist.length > settings.playerLimit) {
+    else if (userCount > settings.playerLimit) {
         alert("Error, too many players. How did that happen?! o.O");
     }
     else {
