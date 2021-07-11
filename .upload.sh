@@ -8,4 +8,4 @@ DST="$SERVER01:/opt/"
 echo "${SRC} >>> ${DST}"
 rsync -rtvP --delete --exclude=.git* ${SRC} ${DST}
 
-pass webdev/server01-chris | head -n1 | ssh -tt ${SERVER01} "sudo systemctl daemon-reload && sudo systemctl restart kicker.socket && sudo systemctl restart kicker.service"
+pass webdev/server01-chris | head -n1 | ssh -tt ${SERVER01} "sudo systemctl daemon-reload && sudo systemctl restart kicker.socket && sudo systemctl restart kicker.service && sudo systemctl reload nginx.service"
