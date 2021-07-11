@@ -28,6 +28,16 @@ body {
     border-width: 5px 0;
 }
 
+#gamesource {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+#gamesource a {
+    text-decoration: inherit;
+}
+
 #numbers {
     background: black;
     position: fixed;
