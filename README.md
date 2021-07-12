@@ -2,7 +2,7 @@
 
 -- Work in Progress --
 
-Not finished by far, not yet playable.
+Playable, but still pretty rough around the edges.
 
 ## Basics
 
@@ -15,6 +15,14 @@ Not finished by far, not yet playable.
 ![Kicker screenshot](screenshot.png "Kicker screenshot")
 
 ## TODO
+
+- Count goals
+
+- Add key "h" or "?" for help overlay
+
+- Fix "g" key for game reset: Make it work always. Can only be used by Server user.
+
+- Fix "p" key for pause/resume: Can only be used by Server user.
 
 - Improve user connect and reset:
     - At the start, overlay message how many users are connected.

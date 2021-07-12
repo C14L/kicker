@@ -1,6 +1,8 @@
+////////////////////////////////////////////////////////////////////////////////////////
+// Hash Maps with global state
+////////////////////////////////////////////////////////////////////////////////////////
 
-
-// Local HTML elements used to render the game
+// HTML elements used to render the game
 const elems = {
     userBars: [...document.querySelectorAll("#userbars > div")],
     bars: [...document.querySelectorAll("#table > .bar")],
