@@ -5,21 +5,21 @@ from django.http.response import HttpResponse
 # so keep it simple and just return static html files
 # with embedded css and js.
 
-def home(request):
-    with open(settings.KICKER_HOME_FILE, "r") as fh:
-        html = "".join(fh.readlines())
+def getcontents(filename):
+    with open(filename, "r") as fh:
+        return "".join(fh.readlines())
 
-    return HttpResponse(html)
+
+def home(request):
+    return HttpResponse(getcontents(settings.KICKER_HOME_FILE))
+
+
+def user(request, game_id):
+    return HttpResponse(getcontents(settings.KICKER_USER_FILE))
 
 
 def game(request, game_id, username):
-    with open(settings.KICKER_JS_FILE, "r") as fh:
-        js = "".join(fh.readlines())
-    with open(settings.KICKER_CSS_FILE, "r") as fh:
-        css = "".join(fh.readlines())
-    with open(settings.KICKER_HTML_FILE, "r") as fh:
-        html = "".join(fh.readlines())
-
-    return HttpResponse(
-        html + "<style>" + css + "</style>" + "<script>" + js + "</script>"
-    )
+    html = getcontents(settings.KICKER_HTML_FILE)
+    css = "<style>" + getcontents(settings.KICKER_CSS_FILE) + "</style>"
+    js = "<script>" + getcontents(settings.KICKER_JS_FILE) + "</script>"
+    return HttpResponse(html + css + js)

@@ -16,7 +16,7 @@ const elems = {
             left: document.querySelector("#numbers > .score > .left"),
             right: document.querySelector("#numbers > .score > .right"),
         },
-        websocket: document.querySelector("#numbers > .websocket"),
+        websocket: document.querySelector("#numbers > .websocket > .data"),
         players: document.querySelector("#numbers > .players"),
         velocity: {
             t: document.querySelector("#numbers > .velocity > .t"),
@@ -28,8 +28,8 @@ const elems = {
 
 // Locally used constant values
 const settings = {
+    debugShowNumbers: false,
     ballRadius: elems.ball.offsetWidth / 2,
-    debugShowNumbers: true,
     drag: 0.8,
     gameId: location.pathname.substr(1).split('/')[1],
     goals: [tableDOMRect(elems.goals[0]), tableDOMRect(elems.goals[1])],
@@ -191,7 +191,7 @@ function wsSyncUserBars() {
 
 function handleWebsocketOpen(event) {
     console.log("handleWebsocketOpen", event);
-    elems.numbers.websocket.style.backgroundColor = 'yellow';
+    elems.numbers.websocket.style.color = 'yellow';
     wsSend("register", { "game": settings.gameId, "user": settings.userId });
 }
 
@@ -677,9 +677,9 @@ function writeWsConnectCount() {
 }
 
 function writeWsStatus(s) {
-    elems.numbers.websocket.style.backgroundColor = s;
+    elems.numbers.websocket.style.color = s;
     if (settings.isServer) {
-        elems.numbers.websocket.style.border = "2px solid white";
+        elems.numbers.websocket.classList.add("isserver");
     }
 }
 

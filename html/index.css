@@ -8,6 +8,7 @@ body {
     --banner-height: 40px;
     margin: 0;
     padding: 0;
+    background-color:darkgreen;
 
 }
 
@@ -39,7 +40,7 @@ body {
 }
 
 #numbers {
-    background: black;
+    background: rgba(0,0,0,0.75);
     position: fixed;
     color: white;
     top: 0;
@@ -53,7 +54,6 @@ body {
 #numbers > .score {
     display: inline-block;
     line-height: var(--banner-height);
-    background-color: black;
     margin: 0;
     width: 300px;
     text-align: center;
@@ -63,7 +63,6 @@ body {
 #numbers > .players {
     display: inline-block;
     line-height: var(--banner-height);
-    background-color: black;
     margin: 0;
     padding: 0 16px;
     width: 300px;
@@ -73,7 +72,6 @@ body {
     list-style-type: none;
     display: inline-block;
     line-height: var(--banner-height);
-    background-color: black;
     margin: 0;
     padding: 0 16px;
     min-width: 300px;
@@ -83,19 +81,26 @@ body {
 }
 
 #numbers > .websocket {
-    width: 26px;
-    height: 26px;
-    line-height: 26px;
-    text-align: center;
-    position: fixed;
-    top: 5px;
-    right: 5px;
-    border-radius: 50%;
-    border: 2px solid black;
     display: inline-block;
-    background-color: white;
-    transition: background-color 500ms linear;
-    color: black;
+    line-height: var(--banner-height);
+    position: fixed;
+    top: 0;
+    right: 0;
+    color: yellow;
+}
+
+#numbers > .websocket > span {
+    display: inline-block;
+    line-height: var(--banner-height);
+}
+
+#numbers > .websocket > span.data {
+    padding: 0 0.5em;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#numbers > .websocket > span.data.isserver {
+    text-decoration: underline;
 }
 
 #userbars {
@@ -108,7 +113,8 @@ body {
 
 #userbars > div {
     display: inline-block;
-    background-color: lightgray;
+    background-color: rgba(0,0,0,0.25);
+    color: white;
     margin: 0 5px;
     padding: 5px 0;
     width: calc(var(--table-width) / 9.5);

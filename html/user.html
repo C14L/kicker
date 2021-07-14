@@ -11,7 +11,7 @@
         }
         .background {
             z-index: -1;
-            opacity: 0.05;
+            opacity: 0.1;
             position: fixed;
             top: 0;
             right: 0;
@@ -21,17 +21,17 @@
             background-position: center center;
             background-repeat: no-repeat;
         }
-
-        h1 {
+        h1.gamelink {
             color: white;
             text-align: center;
-            font-size: 96px;
+            font-size: 36px;
             font-family: 'Ubuntu';
-            letter-spacing: 8px;
-            text-transform: uppercase;
+            letter-spacing: 2px;
             line-height: 1.5em;
             padding: 0;
-            margin: 0;
+            margin: 2em 0;
+            user-select: all;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         form.form {
@@ -46,26 +46,12 @@
             margin: 16px auto;
         }
 
-        label.gamename {
-            width: 600px;
-            font-size: 0;
-            display: flex;
+        label.username {
+            width: 166px;
         }
 
-        label.gamename span {
-            flex: 1 1 auto;
-            user-select: none;
-            border: 0;
-            outline: 0;
-            background-color: lightblue;
-            font-size: 32px;
-            line-height: 32px;
-            padding: 8px;
-            color: darkgrey;
-        }
-
-        label.gamename input[type="text"] {
-            flex: 1 0 auto;
+        label.username input[type="text"] {
+            width: 150px;
             border: 0;
             outline: 0;
             background-color: white;
@@ -93,39 +79,42 @@
             color: white;
             text-align: center;
         }
+
     </style>
 </head>
 
 <body>
     <div class="background"></div>
-    <h1>Kicker</h1>
-    <p class="help">Select a URL for your game and send it to the other players.</p>
-    <form class="form" method="GET" onsubmit="location.href=this.game.value;return false;">
-        <label class="gamename"><input type="text" name="game" value=""></label>
-        <label class="submit"><button type="submit" disabled="disabled">Next</button></label>
+    <p class="help">Game link:</p>
+    <h1 class="gamelink"></h1>
+    <form class="form" method="GET" onsubmit="location.href=location.pathname+this.user.value;return false;">
+        <label class="username"><input placeholder="username" type="text" name="user" maxlength="10"></label>
+        <label class="submit"><button type="submit" disabled="disabled">Play</button></label>
     </form>
+    <p class="help">
+        Each game is played by 4 people. Simply share the above link with three
+        more people. Once 4 people are at the table, the first user who connected
+        can start the game by pressing "b".
+    </p>
+    <p class="help">
+        Each player controls two bars of the table. To move your bars, use "W" and
+        "X" for the left hand bar, and "O" and "M" for the right hand bar. Put your
+        middle fingers on "S" and "K", those keys are used for kicking when the
+        ball is close to a bar's players.
+    </p>
     <script>
+        const elHelpShareLink = document.querySelector('.gamelink');
+        elHelpShareLink.innerHTML += location.href;
 
         const reOnlyAllowedChars = new RegExp(/[^a-zA-Z0-9]/g);
-        const elInput = document.querySelector('input[name="game"]');
+        const elInput = document.querySelector('input[name="user"]');
         const elSubmitBtn = document.querySelector('button[type="submit"]');
-        const prefix = location.href; // 'https://C14L.com/kicker/';
 
         elInput.focus();
-        elInput.maxlength = prefix.length + 10;
-        elInput.value = prefix;
         elInput.addEventListener("keyup", ev => {
-            let suffix = "";
-            if (ev.target.value.length < prefix.length) {
-                ev.target.value = "";
-            } else {
-                ev.target.value
-                suffix = ev.target.value.replace(prefix, '');
-            }
-            suffix = suffix.replace(reOnlyAllowedChars, '');
-            if (suffix.length > 10) suffix = suffix.substr(0, 10);
-            elSubmitBtn.disabled = (suffix.length < 2);
-            ev.target.value = prefix + suffix;
+            ev.target.value = ev.target.value.replace(reOnlyAllowedChars, '');
+            if (ev.target.value.length > 10) ev.target.value = ev.target.value.substr(0, 10);
+            elSubmitBtn.disabled = (ev.target.value.length < 2);
         });
 
     </script>

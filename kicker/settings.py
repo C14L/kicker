@@ -3,6 +3,7 @@ import os
 DEBUG = bool(os.environ.get("ISDEV"))
 SECRET_KEY = "thereisnosecretneededforthisapplicationthereforeit"
 ALLOWED_HOSTS = ["localhost", "c14l.com"]
+APPEND_SLASH = True
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -31,6 +32,8 @@ STATIC_URL = "/static/"
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KICKER_DIR = os.path.join(BASE_DIR, "html")
 KICKER_HOME_FILE = os.path.join(KICKER_DIR, "home.html")
+KICKER_USER_FILE = os.path.join(KICKER_DIR, "user.html")
 KICKER_HTML_FILE = os.path.join(KICKER_DIR, "index.html")
 KICKER_CSS_FILE = os.path.join(KICKER_DIR, "index.css")
 KICKER_JS_FILE = os.path.join(KICKER_DIR, "index.js")
+KICKER_IMG_FILE = os.path.join(KICKER_DIR, "table.png")
