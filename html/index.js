@@ -135,18 +135,28 @@ function handleKeyDown(event) {
 }
 
 function handleKeyPress(event) {
-    if (event.key == "p") { // Pause game
-        console.log("Key p pressed: pause/unpause game...");
-        wsSend("statusupdate", { "key": "hold", "val": (!status.hold) });
+    if (event.key == "h") { // Hold/pause game
+        if (settings.isServer) {
+            if (status.hold) {
+                hideOverlayMsg();
+            } else {
+                showOverlayMsg("Hold game. Press 'h' again to resume...");
+            }
+            wsSend("statusupdate", { "key": "hold", "val": (!status.hold) });
+        }
     }
     if (event.key == "b") { // Add random velocity to ball
-        console.log("Key b pressed: randomly kick the ball...");
-        randomizeBall();
+        if (settings.isServer) {
+            showOverlayMsg("Key 'b' pressed: Ball kicked randomly!", 500);
+            randomizeBall();
+        }
     }
     if (event.key == "g") { // Add random velocity to ball
-        console.log("Key g pressed: start game...");
-        wsSend("playstart", { "ball": items.ball });
-        wsSend("statusupdate", { "key": "hold", "val": false });
+        if (settings.isServer) {
+            showOverlayMsg("Key 'g' pressed: Game start...", 500);
+            wsSend("playstart", { "ball": items.ball });
+            wsSend("statusupdate", { "key": "hold", "val": false });
+        }
     }
 }
 
@@ -278,8 +288,11 @@ function handleWebsocketActionGameSync(response) {
 function handleWebsocketActionSyncOk(response) {
     console.log("@@@ handleWebsocketActionSyncOk()");
     if (status.syncOk.indexOf(response.userId) == -1) status.syncOk.push(response.userId);
-    if (settings.isServer && status.syncOk.length == settings.playerLimit) {
-        wsSend("playprepare");
+    if (settings.isServer) {
+        randomizeBall();
+        if (status.syncOk.length == settings.playerLimit) {
+            wsSend("playprepare");
+        }
     }
     writeWsConnectCount();
 }
@@ -289,7 +302,7 @@ function handleWebsocketActionPlayPrepare(response) {
     writeWsStatus('green');
     writeScore();
     if (settings.isServer) {
-        randomizeBall();
+        wsSend("statusupdate", { "key": "hold", "val": false });
         wsSend("playstart", { "ball": items.ball });
     }
 }
@@ -297,6 +310,7 @@ function handleWebsocketActionPlayPrepare(response) {
 function handleWebsocketActionPlayStart(response) {
     console.log("@@@ handleWebsocketActionPlayStart()");
     items.ball = response.ball;
+    randomizeBall();
     gamePlay();
 }
 
