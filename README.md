@@ -16,23 +16,18 @@ Playable, but still pretty rough around the edges.
 
 ## TODO
 
-- Count goals
+- Add key "?" for help overlay
 
-- Add key "h" or "?" for help overlay
-
-- Fix "g" key for game reset: Make it work always. Can only be used by Server user.
-
-- Fix "p" key for pause/resume: Can only be used by Server user.
+- Fix "g" key for game reset:
+    - Make it work always? But not accidentially. Somewhow.
+    - Can only be used by Server user.
 
 - Improve user connect and reset:
     - At the start, overlay message how many users are connected.
     - More explicit who is Server.
-    - More explicit how to pause and unpause.
     - Let users select the bars they want to play on from the remaining free bars.
 
 - Handle disconnects
     - When a user disconnects, do not change the other user's bars or teams.
     - Keep empty place free to be occupied by the next user who connects to the game.
     - On disconnect, auto-pause game, with option to continue with only three users.
-
-- Improve ball physics speed and drag
