@@ -137,11 +137,6 @@ function handleKeyDown(event) {
 function handleKeyPress(event) {
     if (event.key == "h") { // Hold/pause game
         if (settings.isServer) {
-            if (status.hold) {
-                hideOverlayMsg();
-            } else {
-                showOverlayMsg("Hold game. Press 'h' again to resume...");
-            }
             wsSend("statusupdate", { "key": "hold", "val": (!status.hold) });
         }
     }
@@ -302,7 +297,7 @@ function handleWebsocketActionPlayPrepare(response) {
     writeWsStatus('green');
     writeScore();
     if (settings.isServer) {
-        wsSend("statusupdate", { "key": "hold", "val": false });
+        wsSend("statusupdate", { "key": "hold", "val": true });
         wsSend("playstart", { "ball": items.ball });
     }
 }
@@ -330,20 +325,28 @@ function handleWebsocketActionNewGoal(response) {
     console.log("@@@ handleWebsocketActionNewGoal()");
     status.goalHit = true; // goal
     status.hold = true;    // pause game
+    status.score[response.goalfor]++;
 
     showOverlayMsg("GOooooooooooooooooooooooooooooooooAL!", 2000);
     setTimeout(resetGame, 2000); // after a few seconds reset the game
-
-    if (settings.isServer) {
-        status.score[response.goalfor]++;
-        wsSend("statusupdate", { "key": "score", "val": status.score });
-    }
+    writeScore();
 }
 
 function handleWebsocketActionStatusUpdate(response) {
     console.log("@@@ handleWebsocketActionStatusUpdate() -- key, val", response.key, response.val);
     status[response.key] = response.val;
     writeNumbers();
+    if(response.key == 'hold') {
+        if (status.hold) {
+            if (settings.isServer) {
+                showOverlayMsg("Hold game. Press 'h' again to resume...");
+            } else {
+                showOverlayMsg(`Game paused. Wait for ${status.userlist[0]} to resume...`);
+            }
+        } else {
+            hideOverlayMsg();
+        }
+    }
 }
 
 function handleWebsocketActionFinish(response) {
