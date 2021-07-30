@@ -4,6 +4,7 @@
 
 // HTML elements used to render the game
 const elems = {
+    registerUserOverlay: document.getElementById("register-user-overlay"),
     userBars: [...document.querySelectorAll("#userbars > div")],
     bars: [...document.querySelectorAll("#table > .bar")],
     goals: [...document.querySelectorAll("#table > .goal")],
@@ -40,7 +41,7 @@ const settings = {
     playerRadius: elems.players[0].offsetWidth / 2,
     playersInit: elems.players.map((elem) => [tableDOMRect(elem).x, tableDOMRect(elem).y]),
     table: { top: 0, left: 0, right: 1600, bottom: 800, width: 1600, height: 800, x: 800, y: 400 },
-    userId: location.pathname.substr(1).split('/')[2],
+    userId: null,
 };
 
 // Changing values shared with all other players by the Server
@@ -715,6 +716,35 @@ function hideOverlayMsg() {
 // Run game
 ////////////////////////////////////////////////////////////////////////////////////////
 
-wsInit();
-keysInit();
-drawGame();
+function init() {
+    if (!settings.userId) {
+        initSetUserId()
+    } else {
+        wsInit();
+        keysInit();
+        drawGame();
+    }
+}
+
+function initSetUserId() {
+    const reOnlyAllowedChars = new RegExp(/[^a-zA-Z0-9]/g);
+    const elInput = elems.registerUserOverlay.querySelector('input[name="user"]');
+    const elSubmitBtn = elems.registerUserOverlay.querySelector('button[type="submit"]');
+
+    elems.registerUserOverlay.querySelector('.gamelink').innerHTML = location.href;
+    elInput.focus();
+
+    elInput.addEventListener("keyup", ev => {
+        ev.target.value = ev.target.value.replace(reOnlyAllowedChars, '');
+        if (ev.target.value.length > 10) ev.target.value = ev.target.value.substr(0, 10);
+        elSubmitBtn.disabled = (ev.target.value.length < 2);
+    });
+}
+
+function handleSetUserId(userId) {
+    settings.userId = userId;
+    elems.registerUserOverlay.style.display = 'none';
+    init();
+}
+
+init();

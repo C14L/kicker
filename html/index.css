@@ -12,6 +12,92 @@ body {
 
 }
 
+/* ***** ***** ***** ***** ***** ***** ***** ***** ***** */
+/* ***** ***** ***** ***** ***** ***** ***** ***** ***** */
+
+#register-user-overlay {
+    display: block;
+    background-color:green;
+    color: white;
+    line-height: 1.5em;
+    font-size: larger;
+    padding: 0 0.25em;
+    margin: 0;
+    z-index: 9999;
+    width: 800px;
+    height: 800px;
+    position: fixed;
+    top: 0;
+    left: calc(50vw - 400px);
+    border: 5px solid white;
+    border-top: 0;
+    box-shadow: 0 0 30px rgba(0,0,0,0.75);
+}
+
+#register-user-overlay h1.gamelink {
+    color: white;
+    text-align: center;
+    font-size: 28px;
+    font-family: 'Ubuntu';
+    line-height: 1.5em;
+    padding: 0;
+    margin: 1em 0;
+    user-select: all;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#register-user-overlay form.form {
+    margin: 32px auto;
+    padding: 0;
+}
+
+#register-user-overlay label {
+    display: block;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    padding: 8px;
+    margin: 16px auto;
+}
+
+#register-user-overlay label.username {
+    width: 166px;
+}
+
+#register-user-overlay label.username input[type="text"] {
+    width: 150px;
+    border: 0;
+    outline: 0;
+    background-color: white;
+    font-size: 32px;
+    line-height: 32px;
+    padding: 8px;
+}
+
+#register-user-overlay label.submit {
+    text-align: center;
+    border: 0;
+    background-color: transparent;
+}
+
+#register-user-overlay label.submit button {
+    font-size: 32px;
+    padding: 8px 48px;
+}
+
+#register-user-overlay p.help {
+    width: 620px;
+    margin: 16px auto;
+    padding: 0;
+    font-size: 24px;
+    color: white;
+    text-align: center;
+}
+
+
+
+
+/* ***** ***** ***** ***** ***** ***** ***** ***** ***** */
+/* ***** ***** ***** ***** ***** ***** ***** ***** ***** */
+
 #overlaymsg {
     display: none;
     background-color:red;

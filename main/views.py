@@ -18,7 +18,7 @@ def user(request, game_id):
     return HttpResponse(getcontents(settings.KICKER_USER_FILE))
 
 
-def game(request, game_id, username):
+def game(request, game_id):
     html = getcontents(settings.KICKER_HTML_FILE)
     css = "<style>" + getcontents(settings.KICKER_CSS_FILE) + "</style>"
     js = "<script>" + getcontents(settings.KICKER_JS_FILE) + "</script>"

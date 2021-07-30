@@ -6,6 +6,27 @@
     <title>Kicker</title>
 </head>
 <body>
+    <div id="register-user-overlay">
+        <!-- Do not take the username from the URL, instead ask a new
+        user for a name and add him to the table via WebSocket. -->
+        <p class="help">Game link:</p>
+        <h1 class="gamelink"></h1>
+        <form autocomplete="off" class="form" onsubmit="handleSetUserId(this.user.value);return false;">
+            <label class="username"><input placeholder="username" type="text" name="user" maxlength="10"></label>
+            <label class="submit"><button type="submit" disabled="disabled">Play</button></label>
+        </form>
+        <p class="help">
+            Each game is played by 4 people. Simply share the above link with three
+            more people. Once 4 people are at the table, the first user who connected
+            can start the game by pressing "b".
+        </p>
+        <p class="help">
+            Each player controls two bars of the table. To move your bars, use "W" and
+            "X" for the left hand bar, and "O" and "M" for the right hand bar. Put your
+            middle fingers on "S" and "K", those keys are used for kicking when the
+            ball is close to a bar's players.
+        </p>
+    </div>
     <div id="table">
         <div class="ball"></div>
         <div class="goal left"></div>
