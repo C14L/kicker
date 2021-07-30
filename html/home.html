@@ -99,12 +99,21 @@
 <body>
     <div class="background"></div>
     <h1>Kicker</h1>
-    <p class="help">Select a URL for your game and send it to the other players.</p>
+    <p class="help">Create a new table and send the URL to three other players:</p>
     <form class="form" method="GET" onsubmit="location.href=this.game.value;return false;">
         <label class="gamename"><input type="text" name="game" value=""></label>
         <label class="submit"><button type="submit" disabled="disabled">Next</button></label>
     </form>
     <script>
+
+        function randStr(len) {
+            if (!len) len = 5;
+            var res = '';
+            var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            var charsLen = chars.length;
+            for (var i=0; i<len; i++) res += chars.charAt(Math.floor(Math.random() * charsLen));
+            return res;
+        }
 
         const reOnlyAllowedChars = new RegExp(/[^a-zA-Z0-9]/g);
         const elInput = document.querySelector('input[name="game"]');
@@ -113,7 +122,7 @@
 
         elInput.focus();
         elInput.maxlength = prefix.length + 10;
-        elInput.value = prefix;
+        elInput.value = prefix + randStr(6);
         elInput.addEventListener("keyup", ev => {
             let suffix = "";
             if (ev.target.value.length < prefix.length) {
