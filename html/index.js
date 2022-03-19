@@ -86,6 +86,13 @@ const status = {
 // Helper functions
 ////////////////////////////////////////////////////////////////////////////////////////
 
+// Compare {'a': 1} == {'a': 1} in Javascript. No words...
+function compareObjectsEqual(o1, o2) {
+    for(let p in o1) if ( o1.hasOwnProperty(p) && (o1[p] !== o2[p]) ) return false;
+    for(let p in o2) if ( o2.hasOwnProperty(p) && (o1[p] !== o2[p]) ) return false;
+    return true;
+}
+
 // Return DOM rectangle relative to the table, not the DOM body.
 function tableDOMRect(elem) {
     const domRect = elem.getBoundingClientRect();
@@ -189,21 +196,28 @@ function wsSend(action, data) {
 }
 
 // Server user broadcasts ball position to all players
+let myPreviousBall = {};
 function wsSyncBall() {
-    if (settings.isServer) {
-        wsSend("ballsync", {
-            "ball": items.ball,
-            "userBars": items.userBars,
-        });
-    }
+    if (!settings.isServer) return;
+    if (compareObjectsEqual(myPreviousBall, items.ball)) return;
+
+    wsSend("ballsync", {
+        "ball": items.ball,
+        "userBars": items.userBars,
+    });
+    myPreviousBall = items.ball;
 }
 
 // Each user broadcasts the positions of their own two bars to all players
+let myPreviousOffsetBars = {};
 function wsSyncUserBars() {
     let myOffsetBars = {};
     myOffsetBars[status.playerBars.left] = items.offsetBars[status.playerBars.left];
     myOffsetBars[status.playerBars.right] = items.offsetBars[status.playerBars.right];
+    // Dont sent messages if nothing changed
+    if (compareObjectsEqual(myPreviousOffsetBars, myOffsetBars)) return;
     wsSend("barssync", { "offsetBars": myOffsetBars });
+    myPreviousOffsetBars = myOffsetBars;
 }
 
 function handleWebsocketOpen(event) {
