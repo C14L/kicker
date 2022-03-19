@@ -2,6 +2,15 @@
 // Hash Maps with global state
 ////////////////////////////////////////////////////////////////////////////////////////
 
+const KEY_LEFT_UP = "w";
+const KEY_LEFT_DOWN = "s";
+const KEY_LEFT_KICK_LEFT = "a";
+const KEY_LEFT_KICK_RIGHT = "d";
+const KEY_RIGHT_UP = "o";
+const KEY_RIGHT_DOWN = "l";
+const KEY_RIGHT_KICK_LEFT = "k";
+const KEY_RIGHT_KICK_RIGHT = ";";
+
 // HTML elements used to render the game
 const elems = {
     registerUserOverlay: document.getElementById("register-user-overlay"),
@@ -31,7 +40,7 @@ const elems = {
 const settings = {
     debugShowNumbers: false,
     ballRadius: elems.ball.offsetWidth / 2,
-    drag: 0.8,
+    drag: 0.85,
     gameId: location.pathname.substr(1).split('/')[1],
     goals: [tableDOMRect(elems.goals[0]), tableDOMRect(elems.goals[1])],
     isServer: false,
@@ -119,20 +128,22 @@ function keysInit() {
 }
 
 function handleKeyUp(event) {
-    if (event.key == "w") barClearInterval("leftMoveUpInterval");
-    if (event.key == "x") barClearInterval("leftMoveDownInterval");
-    if (event.key == "o") barClearInterval("rightMoveUpInterval");
-    if (event.key == "m") barClearInterval("rightMoveDownInterval");
+    if (event.key == KEY_LEFT_UP) barClearInterval("leftMoveUpInterval");
+    if (event.key == KEY_LEFT_DOWN) barClearInterval("leftMoveDownInterval");
+    if (event.key == KEY_RIGHT_UP) barClearInterval("rightMoveUpInterval");
+    if (event.key == KEY_RIGHT_DOWN) barClearInterval("rightMoveDownInterval");
 }
 
 function handleKeyDown(event) {
-    if (event.key == "s") wsSend("kickbar", { "bar": status.playerBars.left });
-    if (event.key == "k") wsSend("kickbar", { "bar": status.playerBars.right });
+    if (event.key == KEY_LEFT_KICK_LEFT) wsSend("kickbar", { "bar": status.playerBars.left });
+    if (event.key == KEY_RIGHT_KICK_LEFT) wsSend("kickbar", { "bar": status.playerBars.right });
+    if (event.key == KEY_LEFT_KICK_RIGHT) wsSend("kickbar", { "bar": status.playerBars.left });
+    if (event.key == KEY_RIGHT_KICK_RIGHT) wsSend("kickbar", { "bar": status.playerBars.right });
 
-    if (event.key == "w") barSetInterval("leftMoveUpInterval", "left", "up");
-    if (event.key == "x") barSetInterval("leftMoveDownInterval", "left", "down");
-    if (event.key == "o") barSetInterval("rightMoveUpInterval", "right", "up");
-    if (event.key == "m") barSetInterval("rightMoveDownInterval", "right", "down");
+    if (event.key == KEY_LEFT_UP) barSetInterval("leftMoveUpInterval", "left", "up");
+    if (event.key == KEY_LEFT_DOWN) barSetInterval("leftMoveDownInterval", "left", "down");
+    if (event.key == KEY_RIGHT_UP) barSetInterval("rightMoveUpInterval", "right", "up");
+    if (event.key == KEY_RIGHT_DOWN) barSetInterval("rightMoveDownInterval", "right", "down");
 }
 
 function handleKeyPress(event) {
